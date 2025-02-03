@@ -1,3 +1,4 @@
 .envrc
 .direnv
-src.bin
+game_runtime.so
+platform
