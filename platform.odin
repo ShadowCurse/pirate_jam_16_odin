@@ -55,7 +55,7 @@ RuntimeFn :: #type proc(
     height: u32,
     input_state: ^game.InputState,
 )
-RUNTIME_LIB_PATH :: "game_runtime.so"
+RUNTIME_LIB_PATH :: "game.so"
 RUNTIM_EXPORT_NAME :: "runtime_main"
 RTLD_NOW :: 0x00002
 
