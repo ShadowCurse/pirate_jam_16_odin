@@ -33,6 +33,12 @@ main :: proc() {
         game.log_err("Could not load runtime: %", err)
     }
 
+    surface_texture := game.Texture {
+        data   = slice.from_ptr(cast([^]u32)surface.pixels, 1280 * 720),
+        width  = 1280,
+        height = 720,
+    }
+
     game.log_info("Running the runtime")
     input_state: game.InputState = {}
     event: sdl2.Event = ---
@@ -42,17 +48,16 @@ main :: proc() {
             input_state_update(&input_state, &event)
         }
         if input_state.quit do break
-        pixels := slice.from_ptr(cast([^]u32)surface.pixels, 1280 * 720)
-        fn(&memory, pixels, 1280, 720, &input_state)
+
+        sdl2.FillRect(surface, nil, 0)
+        fn(&memory, &surface_texture, &input_state)
         sdl2.UpdateWindowSurface(window)
     }
 }
 
 RuntimeFn :: #type proc(
     memory: ^game.Memory,
-    pixels: []u32,
-    width: u32,
-    height: u32,
+    surface_texture: ^game.Texture,
     input_state: ^game.InputState,
 )
 RUNTIME_LIB_PATH :: "game.so"
