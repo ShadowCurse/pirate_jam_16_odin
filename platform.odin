@@ -42,6 +42,7 @@ main :: proc() {
     game.log_info("Running the runtime")
     input_state: game.InputState = {}
     event: sdl2.Event = ---
+    runtime_entry: rawptr = nil
     for {
         game.input_state_reset_keys(&input_state)
         for sdl2.PollEvent(&event) {
@@ -50,16 +51,18 @@ main :: proc() {
         if input_state.quit do break
 
         sdl2.FillRect(surface, nil, 0)
-        fn(&memory, &surface_texture, &input_state)
+
+        runtime_entry = fn(runtime_entry, &memory, &surface_texture, &input_state)
         sdl2.UpdateWindowSurface(window)
     }
 }
 
 RuntimeFn :: #type proc(
+    entry_point: rawptr,
     memory: ^game.Memory,
     surface_texture: ^game.Texture,
     input_state: ^game.InputState,
-)
+) -> rawptr
 RUNTIME_LIB_PATH :: "game.so"
 RUNTIM_EXPORT_NAME :: "runtime_main"
 RTLD_NOW :: 0x00002
