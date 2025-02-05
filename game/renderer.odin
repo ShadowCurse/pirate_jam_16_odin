@@ -1,9 +1,34 @@
 package game
 
+import "core:slice"
+import stb "vendor:stb/image"
+
 Texture :: struct {
     data:   []u32,
     width:  u32,
     height: u32,
+}
+
+load_texture :: proc(path: cstring) -> Texture {
+    width: i32 = ---
+    height: i32 = ---
+    channels: i32 = ---
+    image := stb.load(path, &width, &height, &channels, 4)
+    assert(image != nil, "Loading texture error: %s", stb.failure_reason())
+    defer stb.image_free(image)
+    assert(channels == 4, "Trying to load texture with not 4 channels")
+    total_bytes := width * height
+    texture_data, err := make([]u32, total_bytes)
+    assert(err == nil, "Cannot allocate memory for the texture: %s", path)
+    copy(texture_data, slice.from_ptr(cast([^]u32)image, cast(int)total_bytes))
+    log_info(
+        "Loaded texture: %s width: %d height: %d channels: %d",
+        path,
+        width,
+        height,
+        channels,
+    )
+    return {texture_data, cast(u32)width, cast(u32)height}
 }
 
 Rectangle :: struct {

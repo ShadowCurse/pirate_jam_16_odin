@@ -32,7 +32,10 @@ runtime_main :: proc(
     return game
 }
 
-Game :: struct {}
+Game :: struct {
+    sample_texture: Texture,
+}
 
 init_game :: proc(game: ^Game) {
+    game.sample_texture = load_texture("./assets/table.png")
 }
