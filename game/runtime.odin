@@ -48,5 +48,5 @@ Game :: struct {
 }
 
 init_game :: proc(game: ^Game) {
-    game.sample_texture = load_texture("./assets/table.png")
+    game.sample_texture = texture_load("./assets/table.png")
 }

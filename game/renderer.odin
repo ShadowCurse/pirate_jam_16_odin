@@ -9,7 +9,7 @@ Texture :: struct {
     height: u32,
 }
 
-load_texture :: proc(path: cstring) -> Texture {
+texture_load :: proc(path: cstring) -> Texture {
     width: i32 = ---
     height: i32 = ---
     channels: i32 = ---
@@ -22,7 +22,18 @@ load_texture :: proc(path: cstring) -> Texture {
     assert(err == nil, "Cannot allocate memory for the texture: %s", path)
     copy(texture_data, slice.from_ptr(cast([^]u32)image, cast(int)total_bytes))
     log_info("Loaded texture: %s width: %d height: %d channels: %d", path, width, height, channels)
-    return {texture_data, cast(u32)width, cast(u32)height}
+    texture := Texture{texture_data, cast(u32)width, cast(u32)height}
+
+    if ODIN_ARCH != .wasm32 do texture_convert_abgr_to_argb(&texture)
+
+    return texture
+}
+
+texture_convert_abgr_to_argb :: proc(texture: ^Texture) {
+    texture_colors := transmute([]Color)texture.data
+    for &color in texture_colors {
+        color_abgr_to_argb(&color)
+    }
 }
 
 // Note: everyting in the renderer is in the screen space coordinate
