@@ -4,7 +4,7 @@ package game
 runtime_main :: proc(
     entry_point: rawptr,
     memory: ^Memory,
-    surface_texture: ^Texture,
+    surface: ^Texture,
     input_state: ^InputState,
 ) -> rawptr {
     game := cast(^Game)entry_point
@@ -17,17 +17,28 @@ runtime_main :: proc(
         init_game(game)
     }
 
-    rectangle := Rectangle {
-        position = vec2_cast(input_state.mouse_screen_positon),
-        size     = {100, 100},
+    {
+        rectangle := Rectangle {
+            position = {200, 200},
+            size     = {100, 100},
+        }
+        color := Color {
+            r = 255,
+            g = 0,
+            b = 128,
+            a = 255,
+        }
+        draw_color_rectangle(surface, &rectangle, color)
     }
-    color := Color {
-        r = 255,
-        g = 0,
-        b = 128,
-        a = 255,
+
+    {
+        area := TextureArea {
+            position = {0, 0},
+            size     = {game.sample_texture.width, game.sample_texture.height},
+        }
+        position := vec2_cast_f32(input_state.mouse_screen_positon)
+        draw_texture(surface, &game.sample_texture, &area, position)
     }
-    draw_color_rectangle(surface_texture, &rectangle, color)
 
     return game
 }
