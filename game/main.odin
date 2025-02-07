@@ -63,8 +63,10 @@ runtime_main :: proc(
 
 Game :: struct {
     sample_texture: Texture,
+    font:           Font,
 }
 
 init_game :: proc(game: ^Game) {
     game.sample_texture = texture_load("./assets/table.png")
+    game.font = font_load("./assets/NewRocker-Regular.ttf", 32.0)
 }
