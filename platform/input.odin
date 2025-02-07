@@ -1,12 +1,12 @@
-package game
+package platform
 
 InputState :: struct {
     quit:                 bool,
     lmb:                  KeyState,
     rmb:                  KeyState,
     space:                KeyState,
-    mouse_screen_positon: Vec2i32,
-    mouse_delta:          Vec2i32,
+    mouse_screen_positon: [2]i32,
+    mouse_delta:          [2]i32,
 }
 
 KeyState :: enum {

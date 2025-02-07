@@ -2,25 +2,26 @@ package platform
 
 import "core:fmt"
 import "core:slice"
-import "game"
 import "vendor:sdl2"
 
-@(export = false)
+WINDOW_WIDTH :: 1280
+WINDOW_HEIGHT :: 720
+
 main :: proc() {
-    memory := game.memory_create()
-    context.allocator = game.memory_perm_allocator(&memory)
-    context.temp_allocator = game.memory_scatch_allocator(&memory)
-    context.logger = game.logger_create()
+    memory := memory_create()
+    context.allocator = memory_perm_allocator(&memory)
+    context.temp_allocator = memory_scatch_allocator(&memory)
+    context.logger = logger_create()
 
     if sdl2.Init({.VIDEO}) != 0 {
-        game.log_err("Could not init SDL2: %s", sdl2.GetError())
+        log_err("Could not init SDL2: %s", sdl2.GetError())
         return
     }
     defer sdl2.Quit()
 
-    window := sdl2.CreateWindow("pirate_jam_odin", 0, 0, 1280, 720, {})
+    window := sdl2.CreateWindow("pirate_jam_odin", 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, {})
     if window == nil {
-        game.log_err("Could not create SDL2 window: %s", sdl2.GetError())
+        log_err("Could not create SDL2 window: %s", sdl2.GetError())
         return
     }
     defer sdl2.DestroyWindow(window)
@@ -30,21 +31,16 @@ main :: proc() {
     runtime: Runtime
     fn, err := runtime_load(&runtime)
     if err != nil {
-        game.log_err("Could not load runtime: %", err)
+        log_err("Could not load runtime: %s", err)
     }
 
-    surface_texture := game.Texture {
-        data   = slice.from_ptr(cast([^]u32)surface.pixels, 1280 * 720),
-        width  = 1280,
-        height = 720,
-    }
-
-    game.log_info("Running the runtime")
-    input_state: game.InputState = {}
+    surface_data := slice.from_ptr(cast([^]u32)surface.pixels, WINDOW_WIDTH * WINDOW_HEIGHT)
+    log_info("Running the runtime")
+    input_state: InputState = {}
     event: sdl2.Event = ---
     runtime_entry: rawptr = nil
     for {
-        game.input_state_reset_keys(&input_state)
+        input_state_reset_keys(&input_state)
         for sdl2.PollEvent(&event) {
             input_state_update(&input_state, &event)
         }
@@ -52,16 +48,25 @@ main :: proc() {
 
         sdl2.FillRect(surface, nil, 0)
 
-        runtime_entry = fn(runtime_entry, &memory, &surface_texture, &input_state)
+        runtime_entry = fn(
+            runtime_entry,
+            &memory,
+            surface_data,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            &input_state,
+        )
         sdl2.UpdateWindowSurface(window)
     }
 }
 
 RuntimeFn :: #type proc(
     entry_point: rawptr,
-    memory: ^game.Memory,
-    surface_texture: ^game.Texture,
-    input_state: ^game.InputState,
+    memory: ^Memory,
+    surface_data: []u32,
+    surface_width: u32,
+    surface_height: u32,
+    input_state: ^InputState,
 ) -> rawptr
 RUNTIME_LIB_PATH :: "game.so"
 RUNTIM_EXPORT_NAME :: "runtime_main"
@@ -98,7 +103,7 @@ runtime_load :: proc(runtime: ^Runtime) -> (RuntimeFn, RuntimeError) {
     return cast(RuntimeFn)new_runtime, nil
 }
 
-input_state_update :: proc(input_state: ^game.InputState, event: ^sdl2.Event) {
+input_state_update :: proc(input_state: ^InputState, event: ^sdl2.Event) {
     #partial switch event.type {
     case sdl2.EventType.QUIT:
         input_state.quit = true

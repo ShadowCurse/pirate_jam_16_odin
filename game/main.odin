@@ -1,11 +1,22 @@
 package game
 
+import "../platform"
+
+log_debug :: platform.log_debug
+log_info :: platform.log_info
+log_warn :: platform.log_warn
+log_err :: platform.log_err
+panic :: platform.panic
+assert :: platform.assert
+
 @(export)
 runtime_main :: proc(
     entry_point: rawptr,
-    memory: ^Memory,
-    surface: ^Texture,
-    input_state: ^InputState,
+    memory: ^platform.Memory,
+    surface_data: []u32,
+    surface_width: u32,
+    surface_height: u32,
+    input_state: ^platform.InputState,
 ) -> rawptr {
     game := cast(^Game)entry_point
     if game == nil {
@@ -15,6 +26,13 @@ runtime_main :: proc(
         game = game_ptr
 
         init_game(game)
+    }
+
+
+    surface := Texture {
+        data   = surface_data,
+        width  = surface_width,
+        height = surface_height,
     }
 
     {
@@ -28,7 +46,7 @@ runtime_main :: proc(
             b = 128,
             a = 255,
         }
-        draw_color_rectangle(surface, &rectangle, color)
+        draw_color_rectangle(&surface, &rectangle, color)
     }
 
     {
@@ -36,8 +54,8 @@ runtime_main :: proc(
             position = {0, 0},
             size     = {game.sample_texture.width, game.sample_texture.height},
         }
-        position := vec2_cast_f32(input_state.mouse_screen_positon)
-        draw_texture(surface, &game.sample_texture, &area, position)
+        position := vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
+        draw_texture(&surface, &game.sample_texture, &area, position)
     }
 
     return game

@@ -1,4 +1,4 @@
-package game
+package platform
 
 import "base:runtime"
 import "core:bufio"
