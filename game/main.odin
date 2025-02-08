@@ -13,9 +13,9 @@ assert :: platform.assert
 runtime_main :: proc(
     entry_point: rawptr,
     memory: ^platform.Memory,
-    surface_data: []u32,
-    surface_width: u32,
-    surface_height: u32,
+    surface_data: []u8,
+    surface_width: u16,
+    surface_height: u16,
     input_state: ^platform.InputState,
 ) -> rawptr {
     game := cast(^Game)entry_point
@@ -30,9 +30,10 @@ runtime_main :: proc(
 
 
     surface := Texture {
-        data   = surface_data,
-        width  = surface_width,
-        height = surface_height,
+        data     = surface_data,
+        width    = surface_width,
+        height   = surface_height,
+        channels = 4,
     }
 
     {
@@ -52,7 +53,7 @@ runtime_main :: proc(
     {
         area := TextureArea {
             position = {0, 0},
-            size     = {game.sample_texture.width, game.sample_texture.height},
+            size     = {cast(u32)game.sample_texture.width, cast(u32)game.sample_texture.height},
         }
         position := vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
         draw_texture(&surface, &game.sample_texture, &area, position)

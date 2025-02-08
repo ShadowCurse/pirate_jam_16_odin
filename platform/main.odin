@@ -34,7 +34,7 @@ main :: proc() {
         log_err("Could not load runtime: %s", err)
     }
 
-    surface_data := slice.from_ptr(cast([^]u32)surface.pixels, WINDOW_WIDTH * WINDOW_HEIGHT)
+    surface_data := slice.from_ptr(cast([^]u8)surface.pixels, WINDOW_WIDTH * WINDOW_HEIGHT * 4)
     log_info("Running the runtime")
     input_state: InputState = {}
     event: sdl2.Event = ---
@@ -63,9 +63,9 @@ main :: proc() {
 RuntimeFn :: #type proc(
     entry_point: rawptr,
     memory: ^Memory,
-    surface_data: []u32,
-    surface_width: u32,
-    surface_height: u32,
+    surface_data: []u8,
+    surface_width: u16,
+    surface_height: u16,
     input_state: ^InputState,
 ) -> rawptr
 RUNTIME_LIB_PATH :: "game.so"

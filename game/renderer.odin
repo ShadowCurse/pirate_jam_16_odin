@@ -1,12 +1,14 @@
 package game
 
+import "base:runtime"
 import "core:slice"
 import stb "vendor:stb/image"
 
 Texture :: struct {
-    data:   []u32,
-    width:  u32,
-    height: u32,
+    data:     []u8,
+    width:    u16,
+    height:   u16,
+    channels: u8,
 }
 
 texture_load :: proc(path: cstring) -> Texture {
@@ -17,12 +19,22 @@ texture_load :: proc(path: cstring) -> Texture {
     assert(image != nil, "Loading texture error: %s", stb.failure_reason())
     defer stb.image_free(image)
     assert(channels == 4, "Trying to load texture with not 4 channels")
-    total_bytes := width * height
-    texture_data, err := make([]u32, total_bytes)
+
+    total_bytes := width * height * 4
+    texture_data, err := runtime.make_aligned([]u8, total_bytes, 4)
     assert(err == nil, "Cannot allocate memory for the texture: %s", path)
-    copy(texture_data, slice.from_ptr(cast([^]u32)image, cast(int)total_bytes))
-    log_info("Loaded texture: %s width: %d height: %d channels: %d", path, width, height, channels)
-    texture := Texture{texture_data, cast(u32)width, cast(u32)height}
+
+    image_data: []u8 = slice.from_ptr(image, cast(int)total_bytes)
+    copy(texture_data, image_data)
+
+    texture := Texture{texture_data, cast(u16)width, cast(u16)height, cast(u8)channels}
+    log_info(
+        "Loaded texture: %s width: %d height: %d channels: %d",
+        path,
+        texture.width,
+        texture.height,
+        texture.channels,
+    )
 
     if ODIN_ARCH != .wasm32 do texture_convert_abgr_to_argb(&texture)
 
@@ -30,10 +42,19 @@ texture_load :: proc(path: cstring) -> Texture {
 }
 
 texture_convert_abgr_to_argb :: proc(texture: ^Texture) {
-    texture_colors := transmute([]Color)texture.data
+    texture_colors := texture_as_colors(texture)
     for &color in texture_colors {
         color_abgr_to_argb(&color)
     }
+}
+
+texture_as_colors :: proc(texture: ^Texture) -> []Color {
+    assert(
+        texture.channels == 4,
+        "Trying to convert texture with %d channels into a color slice",
+        texture.channels,
+    )
+    return slice.from_ptr(cast([^]Color)raw_data(texture.data), len(texture.data) / 4)
 }
 
 // Note: everyting in the renderer is in the screen space coordinate
@@ -122,25 +143,25 @@ texture_rectangle_intersection :: proc(texture: ^Texture, rectangle: ^Rectangle)
         },
     }
     assert(
-        0 <= aabb.min.x && aabb.min.x <= texture.width,
+        0 <= aabb.min.x && aabb.min.x <= cast(u32)texture.width,
         "0 <= % <= %",
         aabb.min.x,
         texture.width,
     )
     assert(
-        0 <= aabb.max.x && aabb.max.x <= texture.width,
+        0 <= aabb.max.x && aabb.max.x <= cast(u32)texture.width,
         "0 <= % <= %",
         aabb.max.x,
         texture.width,
     )
     assert(
-        0 <= aabb.min.y && aabb.min.y <= texture.height,
+        0 <= aabb.min.y && aabb.min.y <= cast(u32)texture.height,
         "0 <= % <= %",
         aabb.min.x,
         texture.height,
     )
     assert(
-        0 <= aabb.max.y && aabb.max.y <= texture.height,
+        0 <= aabb.max.y && aabb.max.y <= cast(u32)texture.height,
         "0 <= % <= %",
         aabb.min.x,
         texture.height,
@@ -155,13 +176,14 @@ draw_color_rectangle :: proc(surface: ^Texture, rectangle: ^Rectangle, color: Co
     height := height(&intersection)
     if width == 0 || height == 0 do return
 
-    surface_data_start := intersection.min.x + intersection.min.y * surface.width
+    surface_colors := texture_as_colors(surface)
+    surface_data_start := intersection.min.x + intersection.min.y * cast(u32)surface.width
 
     for _ in 0 ..< height {
-        for &c in surface.data[surface_data_start:][:width] {
-            c = transmute(u32)color
+        for &c in surface_colors[surface_data_start:][:width] {
+            c = color
         }
-        surface_data_start += surface.width
+        surface_data_start += cast(u32)surface.width
     }
 }
 
@@ -181,18 +203,23 @@ draw_texture :: proc(
     height := height(&intersection)
     if width == 0 || height == 0 do return
 
-    surface_data_start := intersection.min.x + intersection.min.y * surface.width
+    surface_colors := texture_as_colors(surface)
+    surface_data_start := intersection.min.x + intersection.min.y * cast(u32)surface.width
 
+    texture_colors := texture_as_colors(texture)
     texture_x_offset := cast(u32)abs(left(&texture_rectangle_on_the_surface)) - intersection.min.x
     texture_y_offset := cast(u32)abs(top(&texture_rectangle_on_the_surface)) - intersection.min.y
     texture_data_start :=
         texture_area.position.x +
         texture_x_offset +
-        (texture_area.position.y + texture_y_offset) * texture.width
+        (texture_area.position.y + texture_y_offset) * cast(u32)texture.width
 
     for _ in 0 ..< height {
-        copy(surface.data[surface_data_start:][:width], texture.data[texture_data_start:][:width])
-        surface_data_start += surface.width
-        texture_data_start += texture.width
+        copy(
+            surface_colors[surface_data_start:][:width],
+            texture_colors[texture_data_start:][:width],
+        )
+        surface_data_start += cast(u32)surface.width
+        texture_data_start += cast(u32)texture.width
     }
 }
