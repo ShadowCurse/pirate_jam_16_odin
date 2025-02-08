@@ -11,11 +11,7 @@ Font :: struct {
     line_gap: f32,
     chars:    []stb.bakedchar,
     kerning:  []f32,
-    texture:  struct {
-        data:   []u8,
-        width:  u32,
-        height: u32,
-    },
+    texture:  Texture,
 }
 
 font_load :: proc(path: cstring, font_size: f32) -> Font {
@@ -82,7 +78,7 @@ font_load :: proc(path: cstring, font_size: f32) -> Font {
         line_gap = line_gap,
         chars = chars,
         kerning = kerning,
-        texture = {bitmap, 512, 512},
+        texture = {bitmap, 512, 512, 1},
     }
 }
 
