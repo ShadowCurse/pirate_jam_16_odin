@@ -192,6 +192,7 @@ draw_texture :: proc(
     texture: ^Texture,
     texture_area: ^TextureArea,
     texture_center: Vec2,
+    ignore_alpha := true,
 ) {
     texture_rectangle_on_the_surface := Rectangle {
         center = texture_center,
@@ -217,13 +218,25 @@ draw_texture :: proc(
             texture_x_offset +
             (texture_area.position.y + texture_y_offset) * cast(u32)texture.width
 
-        for _ in 0 ..< height {
-            copy(
-                surface_colors[surface_data_start:][:width],
-                texture_colors[texture_data_start:][:width],
-            )
-            surface_data_start += cast(u32)surface.width
-            texture_data_start += cast(u32)texture.width
+        if ignore_alpha {
+            for _ in 0 ..< height {
+                copy(
+                    surface_colors[surface_data_start:][:width],
+                    texture_colors[texture_data_start:][:width],
+                )
+                surface_data_start += cast(u32)surface.width
+                texture_data_start += cast(u32)texture.width
+            }
+        } else {
+            for _ in 0 ..< height {
+                for x in 0 ..< width {
+                    color := texture_colors[texture_data_start:][x]
+                    surface_color := &surface_colors[surface_data_start:][x]
+                    surface_color^ = color_blend(surface_color, &color)
+                }
+                surface_data_start += cast(u32)surface.width
+                texture_data_start += cast(u32)texture.width
+            }
         }
     } else if texture.channels == 1 {
         texture_colors := texture.data
@@ -236,19 +249,37 @@ draw_texture :: proc(
             texture_x_offset +
             (texture_area.position.y + texture_y_offset) * cast(u32)texture.width
 
-        for _ in 0 ..< height {
-            for x in 0 ..< width {
-                c := texture_colors[texture_data_start:][x]
-                color := Color {
-                    r = c,
-                    g = c,
-                    b = c,
-                    a = c,
+        if ignore_alpha {
+            for _ in 0 ..< height {
+                for x in 0 ..< width {
+                    c := texture_colors[texture_data_start:][x]
+                    color := Color {
+                        r = c,
+                        g = c,
+                        b = c,
+                        a = 255,
+                    }
+                    surface_colors[surface_data_start:][x] = color
                 }
-                surface_colors[surface_data_start:][x] = color
+                surface_data_start += cast(u32)surface.width
+                texture_data_start += cast(u32)texture.width
             }
-            surface_data_start += cast(u32)surface.width
-            texture_data_start += cast(u32)texture.width
+        } else {
+            for _ in 0 ..< height {
+                for x in 0 ..< width {
+                    c := texture_colors[texture_data_start:][x]
+                    color := Color {
+                        r = c,
+                        g = c,
+                        b = c,
+                        a = c,
+                    }
+                    surface_color := &surface_colors[surface_data_start:][x]
+                    surface_color^ = color_blend(surface_color, &color)
+                }
+                surface_data_start += cast(u32)surface.width
+                texture_data_start += cast(u32)texture.width
+            }
         }
     }
 }

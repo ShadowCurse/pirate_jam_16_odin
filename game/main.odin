@@ -53,10 +53,10 @@ runtime_main :: proc(
     {
         area := TextureArea {
             position = {0, 0},
-            size     = {cast(u32)game.sample_texture.width, cast(u32)game.sample_texture.height},
+            size     = {cast(u32)game.table_texture.width, cast(u32)game.table_texture.height},
         }
-        position := vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
-        draw_texture(&surface, &game.sample_texture, &area, position)
+        position := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
+        draw_texture(&surface, &game.table_texture, &area, position)
     }
 
     {
@@ -65,18 +65,29 @@ runtime_main :: proc(
             size     = {cast(u32)game.font.texture.width, cast(u32)game.font.texture.height},
         }
         position := Vec2{400, 400}
-        draw_texture(&surface, &game.font.texture, &area, position)
+        draw_texture(&surface, &game.font.texture, &area, position, ignore_alpha = false)
+    }
+
+    {
+        area := TextureArea {
+            position = {0, 0},
+            size     = {cast(u32)game.hand_texture.width, cast(u32)game.hand_texture.height},
+        }
+        position := vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
+        draw_texture(&surface, &game.hand_texture, &area, position, ignore_alpha = false)
     }
 
     return game
 }
 
 Game :: struct {
-    sample_texture: Texture,
-    font:           Font,
+    table_texture: Texture,
+    hand_texture:  Texture,
+    font:          Font,
 }
 
 init_game :: proc(game: ^Game) {
-    game.sample_texture = texture_load("./assets/table.png")
+    game.table_texture = texture_load("./assets/table.png")
+    game.hand_texture = texture_load("./assets/player_hand.png")
     game.font = font_load("./assets/NewRocker-Regular.ttf", 32.0)
 }
