@@ -38,8 +38,8 @@ runtime_main :: proc(
 
     {
         rectangle := Rectangle {
-            position = {200, 200},
-            size     = {100, 100},
+            center = {200, 200},
+            size   = {100, 100},
         }
         color := Color {
             r = 255,
@@ -57,6 +57,15 @@ runtime_main :: proc(
         }
         position := vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
         draw_texture(&surface, &game.sample_texture, &area, position)
+    }
+
+    {
+        area := TextureArea {
+            position = {0, 0},
+            size     = {cast(u32)game.font.texture.width, cast(u32)game.font.texture.height},
+        }
+        position := Vec2{400, 400}
+        draw_texture(&surface, &game.font.texture, &area, position)
     }
 
     return game

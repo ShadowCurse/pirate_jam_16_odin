@@ -84,21 +84,21 @@ texture_area_bottom :: proc(area: ^TextureArea) -> u32 {
 
 // Rectangle shape with the position at it's center
 Rectangle :: struct {
-    position: Vec2,
-    size:     Vec2,
+    center: Vec2,
+    size:   Vec2,
 }
 
 rectangle_left :: proc(rectangle: ^Rectangle) -> f32 {
-    return rectangle.position.x - rectangle.size.x / 2
+    return rectangle.center.x - rectangle.size.x / 2
 }
 rectangle_right :: proc(rectangle: ^Rectangle) -> f32 {
-    return rectangle.position.x + rectangle.size.x / 2
+    return rectangle.center.x + rectangle.size.x / 2
 }
 rectangle_top :: proc(rectangle: ^Rectangle) -> f32 {
-    return rectangle.position.y - rectangle.size.y / 2
+    return rectangle.center.y - rectangle.size.y / 2
 }
 rectangle_bottom :: proc(rectangle: ^Rectangle) -> f32 {
-    return rectangle.position.y + rectangle.size.y / 2
+    return rectangle.center.y + rectangle.size.y / 2
 }
 
 left :: proc {
@@ -191,11 +191,11 @@ draw_texture :: proc(
     surface: ^Texture,
     texture: ^Texture,
     texture_area: ^TextureArea,
-    texture_position: Vec2,
+    texture_center: Vec2,
 ) {
     texture_rectangle_on_the_surface := Rectangle {
-        position = texture_position,
-        size     = {cast(f32)texture.width, cast(f32)texture.height},
+        center = texture_center,
+        size   = {cast(f32)texture.width, cast(f32)texture.height},
     }
     intersection := texture_rectangle_intersection(surface, &texture_rectangle_on_the_surface)
 
@@ -206,20 +206,49 @@ draw_texture :: proc(
     surface_colors := texture_as_colors(surface)
     surface_data_start := intersection.min.x + intersection.min.y * cast(u32)surface.width
 
-    texture_colors := texture_as_colors(texture)
-    texture_x_offset := cast(u32)abs(left(&texture_rectangle_on_the_surface)) - intersection.min.x
-    texture_y_offset := cast(u32)abs(top(&texture_rectangle_on_the_surface)) - intersection.min.y
-    texture_data_start :=
-        texture_area.position.x +
-        texture_x_offset +
-        (texture_area.position.y + texture_y_offset) * cast(u32)texture.width
+    if texture.channels == 4 {
+        texture_colors := texture_as_colors(texture)
+        texture_x_offset :=
+            cast(u32)abs(left(&texture_rectangle_on_the_surface)) - intersection.min.x
+        texture_y_offset :=
+            cast(u32)abs(top(&texture_rectangle_on_the_surface)) - intersection.min.y
+        texture_data_start :=
+            texture_area.position.x +
+            texture_x_offset +
+            (texture_area.position.y + texture_y_offset) * cast(u32)texture.width
 
-    for _ in 0 ..< height {
-        copy(
-            surface_colors[surface_data_start:][:width],
-            texture_colors[texture_data_start:][:width],
-        )
-        surface_data_start += cast(u32)surface.width
-        texture_data_start += cast(u32)texture.width
+        for _ in 0 ..< height {
+            copy(
+                surface_colors[surface_data_start:][:width],
+                texture_colors[texture_data_start:][:width],
+            )
+            surface_data_start += cast(u32)surface.width
+            texture_data_start += cast(u32)texture.width
+        }
+    } else if texture.channels == 1 {
+        texture_colors := texture.data
+        texture_x_offset :=
+            cast(u32)abs(left(&texture_rectangle_on_the_surface)) - intersection.min.x
+        texture_y_offset :=
+            cast(u32)abs(top(&texture_rectangle_on_the_surface)) - intersection.min.y
+        texture_data_start :=
+            texture_area.position.x +
+            texture_x_offset +
+            (texture_area.position.y + texture_y_offset) * cast(u32)texture.width
+
+        for _ in 0 ..< height {
+            for x in 0 ..< width {
+                c := texture_colors[texture_data_start:][x]
+                color := Color {
+                    r = c,
+                    g = c,
+                    b = c,
+                    a = c,
+                }
+                surface_colors[surface_data_start:][x] = color
+            }
+            surface_data_start += cast(u32)surface.width
+            texture_data_start += cast(u32)texture.width
+        }
     }
 }
