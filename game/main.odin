@@ -59,14 +59,14 @@ runtime_main :: proc(
         draw_texture(&surface, &game.table_texture, &area, position)
     }
 
-    {
-        area := TextureArea {
-            position = {0, 0},
-            size     = {cast(u32)game.font.texture.width, cast(u32)game.font.texture.height},
-        }
-        position := Vec2{400, 400}
-        draw_texture(&surface, &game.font.texture, &area, position, ignore_alpha = false)
-    }
+    // {
+    //     area := TextureArea {
+    //         position = {0, 0},
+    //         size     = {cast(u32)game.font.texture.width, cast(u32)game.font.texture.height},
+    //     }
+    //     position := Vec2{400, 400}
+    //     draw_texture(&surface, &game.font.texture, &area, position, ignore_alpha = false)
+    // }
 
     {
         area := TextureArea {
@@ -75,6 +75,28 @@ runtime_main :: proc(
         }
         position := vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
         draw_texture(&surface, &game.hand_texture, &area, position, ignore_alpha = false)
+    }
+
+    {
+        position := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
+        draw_text(
+            &surface,
+            &game.font,
+            position,
+            "}})}})}})}})}})}})}})}})}})}})}})",
+            center = true,
+        )
+    }
+    {
+        position := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2 + 40.0}
+        draw_text(
+            &surface,
+            &game.font,
+            position,
+            "}})}})}})}})}})}})}})}})}})}})}})",
+            center = true,
+            kerning = false,
+        )
     }
 
     return game

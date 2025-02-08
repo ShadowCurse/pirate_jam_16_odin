@@ -82,8 +82,101 @@ font_load :: proc(path: cstring, font_size: f32) -> Font {
     }
 }
 
-font_get_kerning :: proc(font: ^Font, char_1: u8, char_2: u8) -> f32 {
-    index := char_1 - ALL_CHARS[0]
-    offset := char_2 - ALL_CHARS[0]
-    return font.kerning[index * len(ALL_CHARS) + offset]
+font_get_kerning :: proc(font: ^Font, prev_char: u8, char: u8) -> f32 {
+    index := prev_char - ALL_CHARS[0]
+    offset := char - ALL_CHARS[0]
+    kerning_index := cast(u32)index * len(ALL_CHARS) + cast(u32)offset
+    return font.kerning[kerning_index]
+}
+
+import "core:fmt"
+
+CharDrawInfo :: struct {
+    screen_position: Vec2,
+    texture_area:    TextureArea,
+}
+
+draw_text :: proc(
+    surface: ^Texture,
+    font: ^Font,
+    position: Vec2,
+    format: string,
+    args: ..any,
+    center := false,
+    kerning := true,
+) {
+    str := fmt.tprintf(format, ..args)
+    char_draw_infos := make([]CharDrawInfo, len(str), allocator = context.temp_allocator)
+
+    line_start_index := 0
+    global_offset := Vec2{}
+    for i in 0 ..< len(str) {
+        char := str[i]
+        char_draw_info := &char_draw_infos[i]
+
+        if char == '\n' {
+            draw_text_line(
+                surface,
+                font,
+                char_draw_infos[line_start_index:i],
+                global_offset.x,
+                center,
+            )
+            line_start_index = i + 1
+            global_offset.x = 0
+            global_offset.y = font.line_gap * font.scale
+            continue
+        }
+
+        char_info := font.chars[char]
+        char_width := char_info.x1 - char_info.x0
+        char_height := char_info.y1 - char_info.y0
+
+        if (kerning && i != line_start_index) {
+            prev_char := str[i - 1]
+            char_kerning := font_get_kerning(font, prev_char, char)
+            global_offset.x += char_kerning * font.scale
+        }
+
+        char_offset := Vec2 {
+            char_info.xoff + cast(f32)char_width * 0.5,
+            char_info.yoff + cast(f32)char_height * 0.5,
+        }
+        char_draw_info^ = {
+            screen_position = position + global_offset + char_offset,
+            texture_area    = {
+                {cast(u32)char_info.x0, cast(u32)char_info.y0},
+                {cast(u32)char_width, cast(u32)char_height},
+            },
+        }
+
+        global_offset.x += char_info.xadvance
+    }
+
+    draw_text_line(surface, font, char_draw_infos[line_start_index:], global_offset.x, center)
+}
+
+draw_text_line :: proc(
+    surface: ^Texture,
+    font: ^Font,
+    char_draw_infos: []CharDrawInfo,
+    total_width: f32,
+    center := false,
+) {
+    if center {
+        half_width := total_width / 2
+        for &cdi in char_draw_infos {
+            cdi.screen_position -= {half_width, 0}
+        }
+    }
+
+    for &cdi in char_draw_infos {
+        draw_texture(
+            surface,
+            &font.texture,
+            &cdi.texture_area,
+            cdi.screen_position,
+            ignore_alpha = false,
+        )
+    }
 }

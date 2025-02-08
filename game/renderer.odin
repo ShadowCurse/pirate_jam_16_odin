@@ -196,7 +196,7 @@ draw_texture :: proc(
 ) {
     texture_rectangle_on_the_surface := Rectangle {
         center = texture_center,
-        size   = {cast(f32)texture.width, cast(f32)texture.height},
+        size   = {cast(f32)texture_area.size.x, cast(f32)texture_area.size.y},
     }
     intersection := texture_rectangle_intersection(surface, &texture_rectangle_on_the_surface)
 
