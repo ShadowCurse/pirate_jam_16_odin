@@ -9,6 +9,17 @@ log_err :: platform.log_err
 panic :: platform.panic
 assert :: platform.assert
 
+Audio :: platform.Audio
+audio_init :: platform.audio_init
+audio_pause :: platform.audio_pause
+audio_unpause :: platform.audio_unpause
+audio_play :: platform.audio_play
+audio_is_playing :: platform.audio_is_playing
+audio_set_volume :: platform.audio_set_volume
+
+Soundtrack :: platform.Soundtrack
+soundtrack_load :: platform.soundtrack_load
+
 @(export)
 runtime_main :: proc(
     entry_point: rawptr,
@@ -106,10 +117,17 @@ Game :: struct {
     table_texture: Texture,
     hand_texture:  Texture,
     font:          Font,
+    background:    Soundtrack,
+    audio:         Audio,
 }
 
 init_game :: proc(game: ^Game) {
     game.table_texture = texture_load("./assets/table.png")
     game.hand_texture = texture_load("./assets/player_hand.png")
     game.font = font_load("./assets/NewRocker-Regular.ttf", 32.0)
+    game.background = soundtrack_load("./assets/background.wav")
+
+    audio_init(&game.audio, 1.0)
+    audio_unpause(&game.audio)
+    audio_play(&game.audio, game.background, 0.2, 0.2)
 }

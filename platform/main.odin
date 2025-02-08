@@ -13,7 +13,7 @@ main :: proc() {
     context.temp_allocator = memory_scatch_allocator(&memory)
     context.logger = logger_create()
 
-    if sdl2.Init({.VIDEO}) != 0 {
+    if sdl2.Init({.VIDEO, .AUDIO}) != 0 {
         log_err("Could not init SDL2: %s", sdl2.GetError())
         return
     }

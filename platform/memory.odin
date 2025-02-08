@@ -166,7 +166,7 @@ Memory :: struct {
     scratch_alloc: BumpAlloc,
 }
 
-PERM_MEMORY_SIZE :: 4096 * 1024
+PERM_MEMORY_SIZE :: 1024 * 1024 * 128
 SCRATCH_MEMORY_SIZE :: 4096 * 10
 memory_create :: proc() -> Memory {
     perm_memory := mmap_memory(PERM_MEMORY_SIZE)
