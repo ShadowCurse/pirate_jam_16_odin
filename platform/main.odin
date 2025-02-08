@@ -29,7 +29,7 @@ main :: proc() {
     surface := sdl2.GetWindowSurface(window)
 
     runtime: Runtime
-    fn, err := runtime_load(&runtime)
+    runtime_fn, err := runtime_load(&runtime)
     if err != nil {
         log_err("Could not load runtime: %s", err)
     }
@@ -43,20 +43,32 @@ main :: proc() {
         input_state_reset_keys(&input_state)
         for sdl2.PollEvent(&event) {
             input_state_update(&input_state, &event)
+
+            if runtime_reload_event(&event) {
+                new_fn, err := runtime_load(&runtime)
+                if err != nil {
+                    log_err("Could not load runtime: %s. Skipping calling runtime.", err)
+                    runtime_fn = nil
+                } else {
+                    log_info("Loaded new runtime")
+                    runtime_fn = new_fn
+                }
+            }
         }
         if input_state.quit do break
 
-        sdl2.FillRect(surface, nil, 0)
-
-        runtime_entry = fn(
-            runtime_entry,
-            &memory,
-            surface_data,
-            WINDOW_WIDTH,
-            WINDOW_HEIGHT,
-            &input_state,
-        )
-        sdl2.UpdateWindowSurface(window)
+        if runtime_fn != nil {
+            sdl2.FillRect(surface, nil, 0)
+            runtime_entry = runtime_fn(
+                runtime_entry,
+                &memory,
+                surface_data,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                &input_state,
+            )
+            sdl2.UpdateWindowSurface(window)
+        }
     }
 }
 
@@ -70,7 +82,6 @@ RuntimeFn :: #type proc(
 ) -> rawptr
 RUNTIME_LIB_PATH :: "game.so"
 RUNTIM_EXPORT_NAME :: "runtime_main"
-RTLD_NOW :: 0x00002
 
 Runtime :: struct {
     handle: rawptr,
@@ -82,25 +93,37 @@ RuntimeError :: enum byte {
     NoRuntimeFn  = 2,
 }
 
-import "core:os"
+import "core:sys/posix"
 
 runtime_load :: proc(runtime: ^Runtime) -> (RuntimeFn, RuntimeError) {
-    new_handle := os.dlopen(RUNTIME_LIB_PATH, RTLD_NOW)
-    if new_handle == nil {
-        return nil, .NoRuntimeLib
-    }
-    new_runtime := os.dlsym(new_handle, RUNTIM_EXPORT_NAME)
-    if new_runtime == nil {
-        os.dlclose(runtime.handle)
-        return nil, .NoRuntimeFn
+    if runtime.handle != nil {
+        log_info("Closing old runtime handle")
+        assert(posix.dlclose(auto_cast runtime.handle) == 0, "Could not close old runtime")
     }
 
-    if runtime.handle != nil {
-        os.dlclose(runtime.handle)
+    new_handle := posix.dlopen(RUNTIME_LIB_PATH, {.NOW})
+    if new_handle == nil {
+        log_err("Cannot open new runtime")
+        return nil, .NoRuntimeLib
+    }
+    new_runtime := posix.dlsym(new_handle, RUNTIM_EXPORT_NAME)
+    if new_runtime == nil {
+        log_err("Now runtime entry in the runtime")
+        assert(posix.dlclose(new_handle) == 0, "Could not close new runtime")
+        return nil, .NoRuntimeFn
     }
 
     runtime.handle = new_handle
     return cast(RuntimeFn)new_runtime, nil
+}
+
+runtime_reload_event :: proc(event: ^sdl2.Event) -> bool {
+    #partial switch event.type {
+    case sdl2.EventType.KEYDOWN:
+        key := event.key
+        return key.keysym.sym == sdl2.Keycode.F5
+    }
+    return false
 }
 
 input_state_update :: proc(input_state: ^InputState, event: ^sdl2.Event) {
