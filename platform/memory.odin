@@ -3,11 +3,11 @@ package platform
 import "base:runtime"
 import "core:log"
 import "core:slice"
-import "core:sys/linux"
+import "core:sys/posix"
 
 mmap_memory :: proc(size: u32) -> []u8 {
-    ptr, err := linux.mmap({}, cast(uint)size, {.READ, .WRITE}, {.PRIVATE, .ANONYMOUS})
-    log.assert(err == nil, "Cannot mmap memory")
+    ptr := posix.mmap(nil, cast(uint)size, {.READ, .WRITE}, {.PRIVATE, .ANONYMOUS})
+    log.assert(ptr != nil, "Cannot mmap memory")
     return slice.from_ptr(cast(^u8)ptr, cast(int)size)
 }
 
@@ -181,4 +181,3 @@ memory_perm_allocator :: proc(memory: ^Memory) -> runtime.Allocator {
 memory_scatch_allocator :: proc(memory: ^Memory) -> runtime.Allocator {
     return runtime.Allocator{procedure = scratch_alloc_proc, data = &memory.scratch_alloc}
 }
-

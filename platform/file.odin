@@ -1,7 +1,7 @@
 package platform
 
 import "core:slice"
-import posix "core:sys/posix"
+import "core:sys/posix"
 
 FileMemory :: distinct []u8
 
