@@ -110,6 +110,14 @@ runtime_main :: proc(
         )
     }
 
+    {
+        right_volume := cast(f32)input_state.mouse_screen_positon.x / cast(f32)surface_width
+        left_volume := 1 - right_volume
+        if input_state.lmb == .Pressed {
+            audio_play(&game.audio, game.hit, left_volume, right_volume)
+        }
+    }
+
     return game
 }
 
@@ -118,6 +126,7 @@ Game :: struct {
     hand_texture:  Texture,
     font:          Font,
     background:    Soundtrack,
+    hit:           Soundtrack,
     audio:         Audio,
 }
 
@@ -126,8 +135,9 @@ init_game :: proc(game: ^Game) {
     game.hand_texture = texture_load("./assets/player_hand.png")
     game.font = font_load("./assets/NewRocker-Regular.ttf", 32.0)
     game.background = soundtrack_load("./assets/background.wav")
+    game.hit = soundtrack_load("./assets/ball_hit.wav")
 
     audio_init(&game.audio, 1.0)
     audio_unpause(&game.audio)
-    audio_play(&game.audio, game.background, 0.2, 0.2)
+    audio_play(&game.audio, game.background, 1.0, 1.0)
 }
