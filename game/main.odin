@@ -62,12 +62,15 @@ runtime_main :: proc(
     }
 
     {
+        @(static) t: f32 = 0.0
+        t += 0.01
+
         area := TextureArea {
             position = {0, 0},
             size     = {cast(u32)game.table_texture.width, cast(u32)game.table_texture.height},
         }
         position := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
-        draw_texture(&surface, &game.table_texture, &area, position)
+        draw_texture_scale_rotate(&surface, &game.table_texture, &area, position, 0.3, t, {200, 0})
     }
 
     // {
@@ -139,5 +142,5 @@ init_game :: proc(game: ^Game) {
 
     audio_init(&game.audio, 1.0)
     audio_unpause(&game.audio)
-    audio_play(&game.audio, game.background, 1.0, 1.0)
+    // audio_play(&game.audio, game.background, 1.0, 1.0)
 }

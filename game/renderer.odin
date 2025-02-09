@@ -1,6 +1,7 @@
 package game
 
 import "base:runtime"
+import "core:math/linalg"
 import "core:slice"
 import stb "vendor:stb/image"
 
@@ -280,6 +281,132 @@ draw_texture :: proc(
                 surface_data_start += cast(u32)surface.width
                 texture_data_start += cast(u32)texture.width
             }
+        }
+    }
+}
+
+draw_texture_scale_rotate :: proc(
+    surface: ^Texture,
+    texture: ^Texture,
+    texture_area: ^TextureArea,
+    texture_center: Vec2,
+    scale: f32,
+    rotation: f32,
+    rotation_offset := Vec2{},
+    ignore_alpha := true,
+) {
+    inv_scale := 1 / scale
+    cos, sin := linalg.cos(rotation), linalg.sin(rotation)
+    new_texture_center :=
+        texture_center +
+        rotation_offset -
+        Vec2 {
+                cos * rotation_offset.x - sin * rotation_offset.y,
+                sin * rotation_offset.x + cos * rotation_offset.y,
+            }
+    x_axis := Vec2{cos, sin}
+    y_axis := Vec2{-sin, cos}
+
+    half_rect_size := vec2_cast_f32(texture_area.size) * scale / 2
+    // a - b
+    // |   |
+    // c - d
+    a := new_texture_center - x_axis * half_rect_size.x - y_axis * half_rect_size.y
+    b := new_texture_center + x_axis * half_rect_size.x - y_axis * half_rect_size.y
+    c := new_texture_center - x_axis * half_rect_size.x + y_axis * half_rect_size.y
+    d := new_texture_center + x_axis * half_rect_size.x + y_axis * half_rect_size.y
+
+    texture_rectangle_on_the_surface := Rectangle {
+        center = new_texture_center,
+        size   = {
+            max(a.x, b.x, c.x, d.x) - min(a.x, b.x, c.x, d.x),
+            max(a.y, b.y, c.y, d.y) - min(a.y, b.y, c.y, d.y),
+        },
+    }
+    intersection := texture_rectangle_intersection(surface, &texture_rectangle_on_the_surface)
+
+    width := width(&intersection)
+    height := height(&intersection)
+    if width == 0 || height == 0 do return
+
+    surface_colors := texture_as_colors(surface)
+    surface_data_start := intersection.min.x + intersection.min.y * cast(u32)surface.width
+
+    if texture.channels == 4 {
+        texture_colors := texture_as_colors(texture)
+        texture_data_start :=
+            texture_area.position.x + texture_area.position.y * cast(u32)texture.width
+
+        ab_perp := perp(b - a)
+        bd_perp := perp(d - b)
+        dc_perp := perp(c - d)
+        ca_perp := perp(a - c)
+
+        for y in 0 ..< height {
+            for x in 0 ..< width {
+                p := vec2_cast_f32(intersection.min + {x, y})
+
+                ap := p - a
+                bp := p - b
+                dp := p - d
+                cp := p - c
+
+                if 0 < linalg.dot(ab_perp, ap) &&
+                   0 < linalg.dot(bd_perp, bp) &&
+                   0 < linalg.dot(dc_perp, dp) &&
+                   0 < linalg.dot(ca_perp, cp) {
+                    u := cast(u32)(linalg.dot(ap, x_axis) * inv_scale)
+                    v := cast(u32)(linalg.dot(ap, y_axis) * inv_scale)
+                    u = clamp(u, 0, texture_area.size.x - 1)
+                    v = clamp(v, 0, texture_area.size.y - 1)
+
+                    color := texture_colors[texture_data_start + u + v * cast(u32)texture.width]
+                    surface_color := &surface_colors[surface_data_start:][x]
+                    surface_color^ = color_blend(surface_color, &color)
+                }
+            }
+            surface_data_start += cast(u32)surface.width
+        }
+    } else if texture.channels == 1 {
+        texture_colors := texture.data
+        texture_data_start :=
+            texture_area.position.x + texture_area.position.y * cast(u32)texture.width
+
+        ab_perp := perp(b - a)
+        bd_perp := perp(d - b)
+        dc_perp := perp(c - d)
+        ca_perp := perp(a - c)
+
+        for y in 0 ..< height {
+            for x in 0 ..< width {
+                p := vec2_cast_f32(intersection.min + {x, y})
+
+                ap := p - a
+                bp := p - b
+                dp := p - d
+                cp := p - c
+
+                if 0 < linalg.dot(ab_perp, ap) &&
+                   0 < linalg.dot(bd_perp, bp) &&
+                   0 < linalg.dot(dc_perp, dp) &&
+                   0 < linalg.dot(ca_perp, cp) {
+                    u := cast(u32)(linalg.dot(ap, x_axis) * inv_scale)
+                    v := cast(u32)(linalg.dot(ap, y_axis) * inv_scale)
+                    u = clamp(u, 0, texture_area.size.x - 1)
+                    v = clamp(v, 0, texture_area.size.y - 1)
+
+                    c := texture_colors[texture_data_start + u + v * cast(u32)texture.width]
+                    color := Color {
+                        r = c,
+                        g = c,
+                        b = c,
+                        a = c,
+                    }
+                    surface_color := &surface_colors[surface_data_start:][x]
+                    surface_color^ = color_blend(surface_color, &color)
+                }
+            }
+            surface_data_start += cast(u32)surface.width
         }
     }
 }
