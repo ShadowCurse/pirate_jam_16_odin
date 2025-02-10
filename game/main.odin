@@ -52,7 +52,7 @@ runtime_main :: proc(
 
     {
         rectangle := Rectangle {
-            center = {200, 200},
+            center = camera_to_screen(&game.camera, {200, 200}),
             size   = {100, 100},
         }
         color := Color {
@@ -72,8 +72,18 @@ runtime_main :: proc(
             position = {0, 0},
             size     = {cast(u32)game.table_texture.width, cast(u32)game.table_texture.height},
         }
-        position := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
-        draw_texture_scale_rotate(&surface, &game.table_texture, &area, position, 0.3, t, {200, 0})
+        game.camera.position = vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
+        position := Vec2{}
+        sp := camera_to_screen(&game.camera, position)
+        draw_texture_scale_rotate(
+            &surface,
+            &game.table_texture,
+            &area,
+            sp,
+            game.camera.scale,
+            t,
+            {200, 0},
+        )
     }
 
     // {
@@ -139,6 +149,7 @@ Game :: struct {
     background:    Soundtrack,
     hit:           Soundtrack,
     audio:         Audio,
+    camera:        Camera,
 }
 
 init_game :: proc(game: ^Game) {
@@ -147,6 +158,7 @@ init_game :: proc(game: ^Game) {
     game.font = font_load("./assets/NewRocker-Regular.ttf", 32.0)
     game.background = soundtrack_load("./assets/background.wav")
     game.hit = soundtrack_load("./assets/ball_hit.wav")
+    game.camera = {{-1280 / 2, -720 / 2}, 0.3}
 
     audio_init(&game.audio, 1.0)
     audio_unpause(&game.audio)

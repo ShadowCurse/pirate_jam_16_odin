@@ -5,6 +5,16 @@ import "core:math/linalg"
 import "core:slice"
 import stb "vendor:stb/image"
 
+Camera :: struct {
+    position: Vec2,
+    scale:    f32,
+}
+
+camera_to_screen :: proc(camera: ^Camera, position: Vec2) -> Vec2 {
+    half_screen := Vec2{1280 / 2, 720 / 2}
+    return (position - camera.position - half_screen) * camera.scale + half_screen
+}
+
 Texture :: struct {
     data:     []u8,
     width:    u16,
