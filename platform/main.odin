@@ -2,6 +2,7 @@ package platform
 
 import "core:fmt"
 import "core:slice"
+import "core:time"
 import "vendor:sdl2"
 
 WINDOW_WIDTH :: 1280
@@ -39,7 +40,11 @@ main :: proc() {
     input_state: InputState = {}
     event: sdl2.Event = ---
     runtime_entry: rawptr = nil
+    before := time.now()
     for {
+        now := time.now()
+        dt_ns := cast(u64)time.diff(before, now)
+        before = now
         input_state_reset_keys(&input_state)
         for sdl2.PollEvent(&event) {
             input_state_update(&input_state, &event)
@@ -60,6 +65,7 @@ main :: proc() {
         if runtime_fn != nil {
             sdl2.FillRect(surface, nil, 0)
             runtime_entry = runtime_fn(
+                dt_ns,
                 runtime_entry,
                 &memory,
                 surface_data,
@@ -73,6 +79,7 @@ main :: proc() {
 }
 
 RuntimeFn :: #type proc(
+    dt_ns: u64,
     entry_point: rawptr,
     memory: ^Memory,
     surface_data: []u8,

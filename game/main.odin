@@ -1,6 +1,7 @@
 package game
 
 import "../platform"
+import "core:fmt"
 
 log_debug :: platform.log_debug
 log_info :: platform.log_info
@@ -22,6 +23,7 @@ soundtrack_load :: platform.soundtrack_load
 
 @(export)
 runtime_main :: proc(
+    dt_ns: u64,
     entry_point: rawptr,
     memory: ^platform.Memory,
     surface_data: []u8,
@@ -29,6 +31,7 @@ runtime_main :: proc(
     surface_height: u16,
     input_state: ^platform.InputState,
 ) -> rawptr {
+    dt := cast(f32)dt_ns / 1000_000_000
     game := cast(^Game)entry_point
     if game == nil {
         log_info("Running the runtime for the first time")
@@ -63,7 +66,7 @@ runtime_main :: proc(
 
     {
         @(static) t: f32 = 0.0
-        t += 0.01
+        t += dt
 
         area := TextureArea {
             position = {0, 0},
@@ -92,6 +95,11 @@ runtime_main :: proc(
     }
 
     {
+        position := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2 - 40}
+        draw_text(&surface, &game.font, position, "FPS: %f.1 DT: %f.1", 1 / dt, dt, center = true)
+    }
+
+    {
         position := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
         draw_text(
             &surface,
@@ -102,7 +110,7 @@ runtime_main :: proc(
         )
     }
     {
-        position := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2 + 40.0}
+        position := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2 + 40}
         draw_text(
             &surface,
             &game.font,
