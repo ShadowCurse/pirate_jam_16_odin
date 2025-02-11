@@ -69,15 +69,17 @@ runtime_run :: proc(
         draw_texture(&surface, &game.table_texture, &area, sp)
     }
 
-    {
-        area := TextureArea {
-            position = {0, 0},
-            size     = {cast(u32)game.ball_texture.width, cast(u32)game.ball_texture.height},
-        }
-        position := Vec2{}
-        sp := camera_to_screen(&game.camera, position)
-        draw_texture(&surface, &game.ball_texture, &area, sp, ignore_alpha = false)
+
+    if input_state.rmb == .Pressed {
+        ball_screen_space := camera_to_screen(&game.camera, game.ball.position)
+        to_ball := ball_screen_space - vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
+        game.ball.acceleration = to_ball * 500
+    } else {
+        game.ball.acceleration = {}
     }
+
+    move_ball(&game.ball, dt)
+    draw_ball(&game.ball, &surface, game)
 
     {
         area := TextureArea {
@@ -113,6 +115,7 @@ Game :: struct {
     hit:           Soundtrack,
     audio:         Audio,
     camera:        Camera,
+    ball:          Ball,
 }
 
 init_game :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
@@ -125,7 +128,31 @@ init_game :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     half_surface_size := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
     game.camera = {half_surface_size, -half_surface_size, 0.3}
 
+    game.ball = {0.5, {}, {}, {}}
+
     audio_init(&game.audio, 1.0)
     audio_unpause(&game.audio)
     // audio_play(&game.audio, game.background, 1.0, 1.0)
+}
+
+Ball :: struct {
+    friction:     f32,
+    acceleration: Vec2,
+    velocity:     Vec2,
+    position:     Vec2,
+}
+
+draw_ball :: proc(ball: ^Ball, surface: ^Texture, game: ^Game) {
+    area := TextureArea {
+        position = {0, 0},
+        size     = {cast(u32)game.ball_texture.width, cast(u32)game.ball_texture.height},
+    }
+    sp := camera_to_screen(&game.camera, ball.position)
+    draw_texture(surface, &game.ball_texture, &area, sp, ignore_alpha = false)
+}
+
+move_ball :: proc(ball: ^Ball, dt: f32) {
+    ball.acceleration += -ball.velocity * ball.friction
+    ball.position = ball.position + ball.velocity * dt + ball.acceleration * 0.5 * dt * dt
+    ball.velocity += ball.acceleration * dt
 }
