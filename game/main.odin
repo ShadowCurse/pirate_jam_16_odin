@@ -2,6 +2,7 @@ package game
 
 import "../platform"
 import "core:fmt"
+import "core:math/linalg"
 
 log_debug :: platform.log_debug
 log_info :: platform.log_info
@@ -50,6 +51,8 @@ runtime_run :: proc(
         channels = 4,
     }
 
+    process_physics(game, dt)
+
     @(static) camera_enabled: bool = false
     if camera_enabled || input_state.lmb == .Pressed {
         camera_enabled = true
@@ -69,16 +72,18 @@ runtime_run :: proc(
         draw_texture(&surface, &game.table_texture, &area, sp)
     }
 
-
-    if input_state.rmb == .Pressed {
-        ball_screen_space := camera_to_screen(&game.camera, game.ball.position)
-        to_ball := ball_screen_space - vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
-        game.ball.acceleration = to_ball * 500
-    } else {
-        game.ball.acceleration = {}
+    for &border in game.borders {
+        draw_border(&border, &surface, game)
     }
 
-    move_ball(&game.ball, dt)
+    if input_state.rmb == .Pressed {
+        ball_screen_space := camera_to_screen(&game.camera, game.ball.body.position)
+        to_ball := ball_screen_space - vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
+        game.ball.body.acceleration = to_ball * 500
+    } else {
+        game.ball.body.acceleration = {}
+    }
+
     draw_ball(&game.ball, &surface, game)
 
     {
@@ -116,6 +121,7 @@ Game :: struct {
     audio:         Audio,
     camera:        Camera,
     ball:          Ball,
+    borders:       [4]Border,
 }
 
 init_game :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
@@ -126,9 +132,25 @@ init_game :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     game.background = soundtrack_load("./assets/background.wav")
     game.hit = soundtrack_load("./assets/ball_hit.wav")
     half_surface_size := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
-    game.camera = {half_surface_size, -half_surface_size, 0.3}
+    game.camera = {half_surface_size, -half_surface_size, 1.0}
 
-    game.ball = {0.5, {}, {}, {}}
+    game.ball = init_ball()
+    game.borders[0] = {
+        position = {0, -272},
+        collider = {{998, 50}},
+    }
+    game.borders[1] = {
+        position = {0, 272},
+        collider = {{998, 50}},
+    }
+    game.borders[2] = {
+        position = {-500, 0},
+        collider = {{50, 545}},
+    }
+    game.borders[3] = {
+        position = {500, 0},
+        collider = {{50, 545}},
+    }
 
     audio_init(&game.audio, 1.0)
     audio_unpause(&game.audio)
@@ -136,10 +158,12 @@ init_game :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
 }
 
 Ball :: struct {
-    friction:     f32,
-    acceleration: Vec2,
-    velocity:     Vec2,
-    position:     Vec2,
+    body:     PhysicsBody,
+    collider: ColliderCircle,
+}
+
+init_ball :: proc() -> Ball {
+    return {body = {friction = 0.5, restitution = 0.8, inv_mass = 1.0}, collider = {10}}
 }
 
 draw_ball :: proc(ball: ^Ball, surface: ^Texture, game: ^Game) {
@@ -147,12 +171,136 @@ draw_ball :: proc(ball: ^Ball, surface: ^Texture, game: ^Game) {
         position = {0, 0},
         size     = {cast(u32)game.ball_texture.width, cast(u32)game.ball_texture.height},
     }
-    sp := camera_to_screen(&game.camera, ball.position)
+    sp := camera_to_screen(&game.camera, ball.body.position)
     draw_texture(surface, &game.ball_texture, &area, sp, ignore_alpha = false)
 }
 
-move_ball :: proc(ball: ^Ball, dt: f32) {
-    ball.acceleration += -ball.velocity * ball.friction
-    ball.position = ball.position + ball.velocity * dt + ball.acceleration * 0.5 * dt * dt
-    ball.velocity += ball.acceleration * dt
+Border :: struct {
+    position: Vec2,
+    collider: ColliderRectangle,
+}
+
+draw_border :: proc(border: ^Border, surface: ^Texture, game: ^Game) {
+    sp := camera_to_screen(&game.camera, border.position)
+    rectangle := Rectangle {
+        center = sp,
+        size   = border.collider.size * game.camera.scale,
+    }
+    color := Color {
+        r = 38,
+        g = 249,
+        b = 74,
+        a = 255,
+    }
+    draw_color_rectangle(surface, &rectangle, color)
+}
+
+ColliderRectangle :: struct {
+    size: Vec2,
+}
+
+ColliderCircle :: struct {
+    radius: f32,
+}
+
+PhysicsBody :: struct {
+    acceleration: Vec2,
+    velocity:     Vec2,
+    position:     Vec2,
+    friction:     f32,
+    restitution:  f32,
+    inv_mass:     f32,
+}
+
+Collision :: struct {
+    position: Vec2,
+    normal:   Vec2,
+}
+
+collision_circle_rectangle :: proc(
+    circle: ColliderCircle,
+    circle_position: Vec2,
+    rectangle: ColliderRectangle,
+    rectangle_position: Vec2,
+) -> (
+    Collision,
+    bool,
+) {
+    rectangle_left := rectangle_position.x - rectangle.size.x / 2
+    rectangle_right := rectangle_position.x + rectangle.size.x / 2
+    rectangle_top := rectangle_position.y - rectangle.size.y / 2
+    rectangle_bottom := rectangle_position.y + rectangle.size.y / 2
+    p := Vec2 {
+        min(max(circle_position.x, rectangle_left), rectangle_right),
+        min(max(circle_position.y, rectangle_top), rectangle_bottom),
+    }
+
+    p_to_circle := circle_position - p
+    if linalg.length2(p_to_circle) < circle.radius * circle.radius {
+        normal := circle_position - p
+        if (rectangle_left < p.x &&
+               p.x < rectangle_right &&
+               rectangle_top < p.y &&
+               p.y < rectangle_bottom) {
+            distance_left := p.x - rectangle_left
+            distance_right := rectangle_right - p.x
+            distance_top := p.y - rectangle_top
+            distance_bottom := rectangle_bottom - p.y
+            m := min(distance_left, distance_right, distance_top, distance_bottom)
+            switch {
+            case m == distance_left:
+                p.x = rectangle_left
+            case m == distance_right:
+                p.x = rectangle_right
+            case m == distance_top:
+                p.y = rectangle_top
+            case m == distance_bottom:
+                p.y = rectangle_bottom
+            }
+            normal = p - circle_position
+        }
+        normal = linalg.normalize(normal)
+        return {p, normal}, true
+    }
+    return {}, false
+}
+
+resolve_ball_border_collision :: proc(ball_body: ^PhysicsBody, collision: ^Collision) {
+    contact_velocity := linalg.dot(ball_body.velocity, collision.normal)
+    // If velocities are already in opposite directions,
+    // do nothing
+    if 0 < contact_velocity do return
+
+    impulse_magnitude := -(1.0 + ball_body.restitution) * contact_velocity / ball_body.inv_mass
+    impulse := collision.normal * impulse_magnitude
+    ball_body.velocity += impulse * ball_body.inv_mass
+}
+
+move_physics_body :: proc(body: ^PhysicsBody, dt: f32) {
+    body.acceleration += -body.velocity * body.friction
+    body.position = body.position + body.velocity * dt + body.acceleration * 0.5 * dt * dt
+    body.velocity += body.acceleration * dt
+}
+
+process_physics :: proc(game: ^Game, dt: f32) {
+    move_physics_body(&game.ball.body, dt)
+
+    collisions, _ := make(
+        [dynamic]Collision,
+        0,
+        len(game.borders),
+        allocator = context.temp_allocator,
+    )
+    for &border in game.borders {
+        collision, hit := collision_circle_rectangle(
+            game.ball.collider,
+            game.ball.body.position,
+            border.collider,
+            border.position,
+        )
+        if hit do append(&collisions, collision)
+    }
+    for &collision in collisions {
+        resolve_ball_border_collision(&game.ball.body, &collision)
+    }
 }
