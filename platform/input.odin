@@ -15,8 +15,9 @@ KeyState :: enum {
     Released,
 }
 
-input_state_reset_keys :: proc(input_state: ^InputState) {
+input_state_reset :: proc(input_state: ^InputState) {
   input_state.lmb = .NotPressed
   input_state.rmb = .NotPressed
   input_state.space = .NotPressed
+  input_state.mouse_delta = {}
 }

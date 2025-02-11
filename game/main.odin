@@ -53,7 +53,7 @@ runtime_run :: proc(
     @(static) camera_enabled: bool = false
     if camera_enabled || input_state.lmb == .Pressed {
         camera_enabled = true
-        game.camera.position = vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
+        game.camera.position += vec2_cast_f32(cast(Vec2i32)input_state.mouse_delta)
     }
     if input_state.lmb == .Released {
         camera_enabled = false

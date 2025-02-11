@@ -47,7 +47,7 @@ main :: proc() {
         dt_ns := cast(u64)time.diff(before, now)
         before = now
 
-        input_state_reset_keys(&input_state)
+        input_state_reset(&input_state)
         for sdl2.PollEvent(&event) {
             input_state_update(&input_state, &event)
 
