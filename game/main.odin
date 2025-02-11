@@ -66,7 +66,17 @@ runtime_run :: proc(
         }
         position := Vec2{}
         sp := camera_to_screen(&game.camera, position)
-        draw_texture(&surface, &game.table_texture, &area, sp, ignore_alpha = true)
+        draw_texture(&surface, &game.table_texture, &area, sp)
+    }
+
+    {
+        area := TextureArea {
+            position = {0, 0},
+            size     = {cast(u32)game.ball_texture.width, cast(u32)game.ball_texture.height},
+        }
+        position := Vec2{}
+        sp := camera_to_screen(&game.camera, position)
+        draw_texture(&surface, &game.ball_texture, &area, sp, ignore_alpha = false)
     }
 
     {
@@ -96,6 +106,7 @@ runtime_run :: proc(
 
 Game :: struct {
     table_texture: Texture,
+    ball_texture:  Texture,
     hand_texture:  Texture,
     font:          Font,
     background:    Soundtrack,
@@ -106,6 +117,7 @@ Game :: struct {
 
 init_game :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     game.table_texture = texture_load("./assets/table.png")
+    game.ball_texture = texture_load("./assets/ball.png")
     game.hand_texture = texture_load("./assets/player_hand.png")
     game.font = font_load("./assets/NewRocker-Regular.ttf", 32.0)
     game.background = soundtrack_load("./assets/background.wav")

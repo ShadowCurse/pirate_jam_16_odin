@@ -303,8 +303,8 @@ draw_texture_scale_rotate :: proc(
     texture: ^Texture,
     texture_area: ^TextureArea,
     texture_center: Vec2,
-    scale: f32,
-    rotation: f32,
+    scale: f32 = 1,
+    rotation: f32 = 0,
     rotation_offset := Vec2{},
     ignore_alpha := true,
 ) {
