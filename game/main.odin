@@ -50,50 +50,24 @@ runtime_run :: proc(
         channels = 4,
     }
 
-    {
-        rectangle := Rectangle {
-            center = camera_to_screen(&game.camera, {200, 200}),
-            size   = {100, 100},
-        }
-        color := Color {
-            r = 255,
-            g = 0,
-            b = 128,
-            a = 255,
-        }
-        draw_color_rectangle(&surface, &rectangle, color)
+    @(static) camera_enabled: bool = false
+    if camera_enabled || input_state.lmb == .Pressed {
+        camera_enabled = true
+        game.camera.position = vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
+    }
+    if input_state.lmb == .Released {
+        camera_enabled = false
     }
 
     {
-        @(static) t: f32 = 0.0
-        t += dt
-
         area := TextureArea {
             position = {0, 0},
             size     = {cast(u32)game.table_texture.width, cast(u32)game.table_texture.height},
         }
-        game.camera.position = vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
         position := Vec2{}
         sp := camera_to_screen(&game.camera, position)
-        draw_texture_scale_rotate(
-            &surface,
-            &game.table_texture,
-            &area,
-            sp,
-            game.camera.scale,
-            t,
-            {200, 0},
-        )
+        draw_texture(&surface, &game.table_texture, &area, sp, ignore_alpha = true)
     }
-
-    // {
-    //     area := TextureArea {
-    //         position = {0, 0},
-    //         size     = {cast(u32)game.font.texture.width, cast(u32)game.font.texture.height},
-    //     }
-    //     position := Vec2{400, 400}
-    //     draw_texture(&surface, &game.font.texture, &area, position, ignore_alpha = false)
-    // }
 
     {
         area := TextureArea {
@@ -105,30 +79,8 @@ runtime_run :: proc(
     }
 
     {
-        position := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2 - 40}
+        position := Vec2{cast(f32)surface_width / 2, 40}
         draw_text(&surface, &game.font, position, "FPS: %f.1 DT: %f.1", 1 / dt, dt, center = true)
-    }
-
-    {
-        position := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
-        draw_text(
-            &surface,
-            &game.font,
-            position,
-            "}})}})}})}})}})}})}})}})}})}})}})",
-            center = true,
-        )
-    }
-    {
-        position := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2 + 40}
-        draw_text(
-            &surface,
-            &game.font,
-            position,
-            "}})}})}})}})}})}})}})}})}})}})}})",
-            center = true,
-            kerning = false,
-        )
     }
 
     {
