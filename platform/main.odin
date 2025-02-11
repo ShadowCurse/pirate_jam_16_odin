@@ -190,7 +190,7 @@ input_state_update :: proc(input_state: ^InputState, event: ^sdl2.Event) {
         case 1:
             input_state.lmb = .Pressed
         case 3:
-            input_state.lmb = .Pressed
+            input_state.rmb = .Pressed
         case:
         }
     case sdl2.EventType.MOUSEBUTTONUP:
@@ -199,7 +199,7 @@ input_state_update :: proc(input_state: ^InputState, event: ^sdl2.Event) {
         case 1:
             input_state.lmb = .Released
         case 3:
-            input_state.lmb = .Released
+            input_state.rmb = .Released
         case:
         }
     case:
