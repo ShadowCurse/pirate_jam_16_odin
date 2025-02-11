@@ -39,7 +39,7 @@ runtime_main :: proc(
         assert(err == nil, "Cannot allocate game")
         game = game_ptr
 
-        init_game(game)
+        init_game(game, surface_width, surface_height)
     }
 
 
@@ -152,13 +152,14 @@ Game :: struct {
     camera:        Camera,
 }
 
-init_game :: proc(game: ^Game) {
+init_game :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     game.table_texture = texture_load("./assets/table.png")
     game.hand_texture = texture_load("./assets/player_hand.png")
     game.font = font_load("./assets/NewRocker-Regular.ttf", 32.0)
     game.background = soundtrack_load("./assets/background.wav")
     game.hit = soundtrack_load("./assets/ball_hit.wav")
-    game.camera = {{-1280 / 2, -720 / 2}, 0.3}
+    half_surface_size := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
+    game.camera = {half_surface_size, -half_surface_size, 0.3}
 
     audio_init(&game.audio, 1.0)
     audio_unpause(&game.audio)

@@ -27,6 +27,7 @@ main :: proc() {
     }
     defer sdl2.DestroyWindow(window)
     sdl2.ShowWindow(window)
+
     surface := sdl2.GetWindowSurface(window)
 
     runtime: Runtime
@@ -35,7 +36,6 @@ main :: proc() {
         log_err("Could not load runtime: %s", err)
     }
 
-    surface_data := slice.from_ptr(cast([^]u8)surface.pixels, WINDOW_WIDTH * WINDOW_HEIGHT * 4)
     log_info("Running the runtime")
     input_state: InputState = {}
     event: sdl2.Event = ---
@@ -45,6 +45,7 @@ main :: proc() {
         now := time.now()
         dt_ns := cast(u64)time.diff(before, now)
         before = now
+
         input_state_reset_keys(&input_state)
         for sdl2.PollEvent(&event) {
             input_state_update(&input_state, &event)
@@ -59,8 +60,16 @@ main :: proc() {
                     runtime_fn = new_fn
                 }
             }
+
+            if surface_resize_event(&event) do surface = sdl2.GetWindowSurface(window)
+
         }
         if input_state.quit do break
+
+        surface_data := slice.from_ptr(
+            cast([^]u8)surface.pixels,
+            cast(int)surface.w * cast(int)surface.h * 4,
+        )
 
         if runtime_fn != nil {
             sdl2.FillRect(surface, nil, 0)
@@ -69,13 +78,22 @@ main :: proc() {
                 runtime_entry,
                 &memory,
                 surface_data,
-                WINDOW_WIDTH,
-                WINDOW_HEIGHT,
+                cast(u16)surface.w,
+                cast(u16)surface.h,
                 &input_state,
             )
             sdl2.UpdateWindowSurface(window)
         }
     }
+}
+
+surface_resize_event :: proc(event: ^sdl2.Event) -> bool {
+    #partial switch event.type {
+    case sdl2.EventType.WINDOWEVENT:
+        window_event := event.window
+        return window_event.event == .RESIZED
+    }
+    return false
 }
 
 RuntimeFn :: #type proc(

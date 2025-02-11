@@ -6,13 +6,16 @@ import "core:slice"
 import stb "vendor:stb/image"
 
 Camera :: struct {
-    position: Vec2,
-    scale:    f32,
+    half_surface_size: Vec2,
+    position:          Vec2,
+    scale:             f32,
 }
 
 camera_to_screen :: proc(camera: ^Camera, position: Vec2) -> Vec2 {
-    half_screen := Vec2{1280 / 2, 720 / 2}
-    return (position - camera.position - half_screen) * camera.scale + half_screen
+    return(
+        (position - camera.position - camera.half_surface_size) * camera.scale +
+        camera.half_surface_size \
+    )
 }
 
 Texture :: struct {
