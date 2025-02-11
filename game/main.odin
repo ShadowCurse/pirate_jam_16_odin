@@ -22,7 +22,16 @@ Soundtrack :: platform.Soundtrack
 soundtrack_load :: platform.soundtrack_load
 
 @(export)
-runtime_main :: proc(
+runtime_init :: proc(memory: ^platform.Memory, surface_width: u16, surface_height: u16) -> rawptr {
+    log_info("Running the runtime for the first time")
+    game_ptr, err := new(Game)
+    assert(err == nil, "Cannot allocate game")
+    init_game(game_ptr, surface_width, surface_height)
+    return game_ptr
+}
+
+@(export)
+runtime_run :: proc(
     dt_ns: u64,
     entry_point: rawptr,
     memory: ^platform.Memory,
@@ -33,15 +42,6 @@ runtime_main :: proc(
 ) -> rawptr {
     dt := cast(f32)dt_ns / 1000_000_000
     game := cast(^Game)entry_point
-    if game == nil {
-        log_info("Running the runtime for the first time")
-        game_ptr, err := new(Game)
-        assert(err == nil, "Cannot allocate game")
-        game = game_ptr
-
-        init_game(game, surface_width, surface_height)
-    }
-
 
     surface := Texture {
         data     = surface_data,

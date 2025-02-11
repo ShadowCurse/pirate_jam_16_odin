@@ -31,15 +31,16 @@ main :: proc() {
     surface := sdl2.GetWindowSurface(window)
 
     runtime: Runtime
-    runtime_fn, err := runtime_load(&runtime)
+    runtime_init_fn, runtime_run_fn, err := runtime_load(&runtime)
     if err != nil {
         log_err("Could not load runtime: %s", err)
     }
 
+    runtime_entry := runtime_init_fn(&memory, cast(u16)surface.w, cast(u16)surface.h)
+
     log_info("Running the runtime")
     input_state: InputState = {}
     event: sdl2.Event = ---
-    runtime_entry: rawptr = nil
     before := time.now()
     for {
         now := time.now()
@@ -51,13 +52,13 @@ main :: proc() {
             input_state_update(&input_state, &event)
 
             if runtime_reload_event(&event) {
-                new_fn, err := runtime_load(&runtime)
+                _, new_runtime_run_fn, err := runtime_load(&runtime)
                 if err != nil {
                     log_err("Could not load runtime: %s. Skipping calling runtime.", err)
-                    runtime_fn = nil
+                    runtime_run_fn = nil
                 } else {
                     log_info("Loaded new runtime")
-                    runtime_fn = new_fn
+                    runtime_run_fn = new_runtime_run_fn
                 }
             }
 
@@ -71,9 +72,9 @@ main :: proc() {
             cast(int)surface.w * cast(int)surface.h * 4,
         )
 
-        if runtime_fn != nil {
+        if runtime_run_fn != nil {
             sdl2.FillRect(surface, nil, 0)
-            runtime_entry = runtime_fn(
+            runtime_run_fn(
                 dt_ns,
                 runtime_entry,
                 &memory,
@@ -96,7 +97,8 @@ surface_resize_event :: proc(event: ^sdl2.Event) -> bool {
     return false
 }
 
-RuntimeFn :: #type proc(
+RuntimeInitFn :: #type proc(memory: ^Memory, surface_width: u16, surface_height: u16) -> rawptr
+RuntimeRunFn :: #type proc(
     dt_ns: u64,
     entry_point: rawptr,
     memory: ^Memory,
@@ -104,9 +106,10 @@ RuntimeFn :: #type proc(
     surface_width: u16,
     surface_height: u16,
     input_state: ^InputState,
-) -> rawptr
+)
 RUNTIME_LIB_PATH :: "game.so"
-RUNTIM_EXPORT_NAME :: "runtime_main"
+RUNTIME_INIT_EXPORT_NAME :: "runtime_init"
+RUNTIME_RUN_EXPORT_NAME :: "runtime_run"
 
 Runtime :: struct {
     handle: rawptr,
@@ -120,7 +123,7 @@ RuntimeError :: enum byte {
 
 import "core:sys/posix"
 
-runtime_load :: proc(runtime: ^Runtime) -> (RuntimeFn, RuntimeError) {
+runtime_load :: proc(runtime: ^Runtime) -> (RuntimeInitFn, RuntimeRunFn, RuntimeError) {
     if runtime.handle != nil {
         log_info("Closing old runtime handle")
         assert(posix.dlclose(auto_cast runtime.handle) == 0, "Could not close old runtime")
@@ -129,17 +132,25 @@ runtime_load :: proc(runtime: ^Runtime) -> (RuntimeFn, RuntimeError) {
     new_handle := posix.dlopen(RUNTIME_LIB_PATH, {.NOW})
     if new_handle == nil {
         log_err("Cannot open new runtime")
-        return nil, .NoRuntimeLib
+        return nil, nil, .NoRuntimeLib
     }
-    new_runtime := posix.dlsym(new_handle, RUNTIM_EXPORT_NAME)
-    if new_runtime == nil {
-        log_err("Now runtime entry in the runtime")
+
+    new_runtime_init := posix.dlsym(new_handle, RUNTIME_INIT_EXPORT_NAME)
+    if new_runtime_init == nil {
+        log_err("No %s entry in the runtime", RUNTIME_INIT_EXPORT_NAME)
         assert(posix.dlclose(new_handle) == 0, "Could not close new runtime")
-        return nil, .NoRuntimeFn
+        return nil, nil, .NoRuntimeFn
+    }
+
+    new_runtime_run := posix.dlsym(new_handle, RUNTIME_RUN_EXPORT_NAME)
+    if new_runtime_init == nil {
+        log_err("No %s entry in the runtime", RUNTIME_RUN_EXPORT_NAME)
+        assert(posix.dlclose(new_handle) == 0, "Could not close new runtime")
+        return nil, nil, .NoRuntimeFn
     }
 
     runtime.handle = new_handle
-    return cast(RuntimeFn)new_runtime, nil
+    return cast(RuntimeInitFn)new_runtime_init, cast(RuntimeRunFn)new_runtime_run, nil
 }
 
 runtime_reload_event :: proc(event: ^sdl2.Event) -> bool {
