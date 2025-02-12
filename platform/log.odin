@@ -1,7 +1,6 @@
 package platform
 
 import "base:runtime"
-import "core:bufio"
 import "core:fmt"
 import "core:os"
 
@@ -71,19 +70,19 @@ log_proc :: proc(
     switch level {
     case .Debug:
         color = HIGH_WHITE
-        level_text := "DEBUG"
+        level_text = "DEBUG"
     case .Info:
         color = WHITE
-        level_text := "INFO"
+        level_text = "INFO"
     case .Warning:
         color = YELLOW
-        level_text := "WARN"
+        level_text = "WARN"
     case .Error:
         color = RED
-        level_text := "ERROR"
+        level_text = "ERROR"
     case .Fatal:
         color = RED
-        level_text := "FATAL"
+        level_text = "FATAL"
     }
 
     file_name_start := 0

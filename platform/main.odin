@@ -1,6 +1,5 @@
 package platform
 
-import "core:fmt"
 import "core:slice"
 import "core:time"
 import "vendor:sdl2"

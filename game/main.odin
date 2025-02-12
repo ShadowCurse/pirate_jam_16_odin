@@ -1,7 +1,6 @@
 package game
 
 import "../platform"
-import "core:fmt"
 import "core:math/linalg"
 
 log_debug :: platform.log_debug

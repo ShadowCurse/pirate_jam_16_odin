@@ -34,12 +34,9 @@ Soundtrack :: distinct []u8
 
 audio_callback :: proc "c" (userdata: rawptr, stream: [^]u8, stream_length: i32) {
     audio := cast(^Audio)userdata
-    audio_global_volume := audio.global_volume
-
     stream_i16x16 := slice.from_ptr(cast([^]simd.i16x16)stream, cast(int)stream_length / 32)
-
     mem.set(raw_data(audio._callback_buffer), 0, len(audio._callback_buffer) * 32)
-    for &ps, i in audio.playing_soundtracks {
+    for &ps in audio.playing_soundtracks {
         if !ps.is_playing do continue
 
         remaining_bytes := cast(u32)len(ps.soundtrack) - ps.progress_bytes
@@ -217,7 +214,7 @@ audio_unpause :: proc(audio: ^Audio) {
 }
 
 audio_play :: proc(audio: ^Audio, soundtrack: Soundtrack, left_volume, right_volume: f32) {
-    for &ps, i in audio.playing_soundtracks {
+    for &ps in audio.playing_soundtracks {
         if !ps.is_playing {
             ps = {
                 soundtrack = soundtrack,
@@ -233,7 +230,7 @@ audio_play :: proc(audio: ^Audio, soundtrack: Soundtrack, left_volume, right_vol
 
 audio_is_playing :: proc(audio: ^Audio, soundtrack: Soundtrack) -> bool {
     is_playing := false
-    for &ps, i in audio.playing_soundtracks {
+    for &ps in audio.playing_soundtracks {
         if raw_data(ps.soundtrack) == raw_data(soundtrack) {
             is_playing |= ps.is_playing
         }
@@ -246,7 +243,7 @@ audio_set_volume :: proc(
     soundtrack: Soundtrack,
     left_target_volume, left_time_seconds, right_target_volume, right_time_seconds: f32,
 ) {
-    for &ps, i in audio.playing_soundtracks {
+    for &ps in audio.playing_soundtracks {
         if raw_data(ps.soundtrack) == raw_data(soundtrack) {
             ps.left.target = left_target_volume
             ps.left.delta_per_sample =
