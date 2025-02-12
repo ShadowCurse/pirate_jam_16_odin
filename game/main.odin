@@ -50,6 +50,8 @@ runtime_run :: proc(
         channels = 4,
     }
 
+    camera_update_surface_size(&game.camera, cast(f32)surface_width, cast(f32)surface_height)
+
     process_physics(game, dt)
 
     @(static) camera_enabled: bool = false

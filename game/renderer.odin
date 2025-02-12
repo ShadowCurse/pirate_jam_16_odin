@@ -11,6 +11,12 @@ Camera :: struct {
     scale:             f32,
 }
 
+camera_update_surface_size :: proc(camera: ^Camera, w, h: f32) {
+    new_half_size := Vec2{w, h} / 2
+    camera.position -= new_half_size - camera.half_surface_size
+    camera.half_surface_size = new_half_size
+}
+
 camera_to_screen :: proc(camera: ^Camera, position: Vec2) -> Vec2 {
     return(
         (position - camera.position - camera.half_surface_size) * camera.scale +
