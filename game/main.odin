@@ -78,14 +78,21 @@ runtime_run :: proc(
     }
 
     if input_state.rmb == .Pressed {
-        ball_screen_space := camera_to_screen(&game.camera, game.ball.body.position)
-        to_ball := ball_screen_space - vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
-        game.ball.body.acceleration = to_ball * 500
+        for &ball in game.balls {
+            ball_screen_space := camera_to_screen(&game.camera, ball.body.position)
+            to_ball :=
+                ball_screen_space - vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
+            ball.body.acceleration = to_ball * 500
+        }
     } else {
-        game.ball.body.acceleration = {}
+        for &ball in game.balls {
+            ball.body.acceleration = {}
+        }
     }
 
-    ball_draw(&game.ball, &surface, game)
+    for &ball in game.balls {
+        ball_draw(&ball, &surface, game)
+    }
 
     {
         area := TextureArea {
@@ -121,7 +128,7 @@ Game :: struct {
     hit:           Soundtrack,
     audio:         Audio,
     camera:        Camera,
-    ball:          Ball,
+    balls:         [9]Ball,
     borders:       [4]Border,
 }
 
@@ -135,7 +142,14 @@ game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     half_surface_size := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
     game.camera = {half_surface_size, -half_surface_size, 1.0}
 
-    game.ball = ball_init()
+    ball_grid_left_top := Vec2{-11 * 2, -11 * 2}
+    for i in 0 ..< 3 {
+        for j in 0 ..< 3 {
+            game.balls[i * 3 + j] = ball_init(
+                ball_grid_left_top + {cast(f32)j * 22, cast(f32)i * 22},
+            )
+        }
+    }
     game.borders[0] = {
         position = {0, -272},
         collider = {{998, 50}},
@@ -163,8 +177,11 @@ Ball :: struct {
     collider: ColliderCircle,
 }
 
-ball_init :: proc() -> Ball {
-    return {body = {friction = 0.5, restitution = 0.8, inv_mass = 1.0}, collider = {10}}
+ball_init :: proc(position: Vec2) -> Ball {
+    return {
+        body = {position = position, friction = 0.5, restitution = 0.8, inv_mass = 1.0},
+        collider = {10},
+    }
 }
 
 ball_draw :: proc(ball: ^Ball, surface: ^Texture, game: ^Game) {
@@ -274,6 +291,27 @@ collision_circle_rectangle :: proc(
     return {}, false
 }
 
+collision_circle_circle :: proc(
+    circle1: ColliderCircle,
+    circle1_position: Vec2,
+    circle2: ColliderCircle,
+    circle2_position: Vec2,
+) -> (
+    Collision,
+    bool,
+) {
+    to_circle1 := circle1_position - circle2_position
+    distance := linalg.length(to_circle1)
+    if distance < circle1.radius + circle2.radius {
+        to_circle1_norm := linalg.normalize(to_circle1)
+        p := circle2_position + to_circle1_norm * circle2.radius
+        normal := to_circle1_norm
+        return {p, normal}, true
+
+    }
+    return {}, false
+}
+
 resolve_ball_border_collision :: proc(ball_body: ^PhysicsBody, collision: ^Collision) {
     contact_velocity := linalg.dot(ball_body.velocity, collision.normal)
     // If velocities are already in opposite directions,
@@ -285,31 +323,89 @@ resolve_ball_border_collision :: proc(ball_body: ^PhysicsBody, collision: ^Colli
     ball_body.velocity += impulse * ball_body.inv_mass
 }
 
+resolve_ball_ball_collision :: proc(
+    ball1: ^PhysicsBody,
+    ball2: ^PhysicsBody,
+    collision: ^Collision,
+) {
+    relative_velocity := ball1.velocity - ball2.velocity
+    contact_velocity := linalg.dot(relative_velocity, collision.normal)
+    // If velocities are already in opposite directions,
+    // do nothing
+    if 0 < contact_velocity do return
+
+    min_restitution := min(ball1.restitution, ball2.restitution)
+    impulse_magnitude :=
+        -(1.0 + min_restitution) * contact_velocity / (ball1.inv_mass + ball2.inv_mass)
+    impulse := collision.normal * impulse_magnitude
+
+    ball1.velocity = ball1.velocity + impulse * ball1.inv_mass
+    ball2.velocity = ball2.velocity + -impulse * ball2.inv_mass
+}
+
 physics_body_move :: proc(body: ^PhysicsBody, dt: f32) {
     body.acceleration += -body.velocity * body.friction
     body.position = body.position + body.velocity * dt + body.acceleration * 0.5 * dt * dt
     body.velocity += body.acceleration * dt
 }
 
-process_physics :: proc(game: ^Game, dt: f32) {
-    physics_body_move(&game.ball.body, dt)
+CollisionInfo :: struct {
+    ball_idx:   u32,
+    other_type: enum {
+        Ball,
+        Border,
+    },
+    other_idx:  u32,
+    collision:  Collision,
+}
 
-    collisions, _ := make(
-        [dynamic]Collision,
-        0,
-        len(game.borders),
-        allocator = context.temp_allocator,
-    )
-    for &border in game.borders {
-        collision, hit := collision_circle_rectangle(
-            game.ball.collider,
-            game.ball.body.position,
-            border.collider,
-            border.position,
+process_physics :: proc(game: ^Game, dt: f32) {
+    dt := dt / 4
+    for _ in 0 ..< 4 {
+        for &ball in game.balls {
+            physics_body_move(&ball.body, dt)
+        }
+
+        collision_infoss, _ := make(
+            [dynamic]CollisionInfo,
+            0,
+            len(game.borders) * len(game.balls) * len(game.balls),
+            allocator = context.temp_allocator,
         )
-        if hit do append(&collisions, collision)
-    }
-    for &collision in collisions {
-        resolve_ball_border_collision(&game.ball.body, &collision)
+        for &ball, i in game.balls {
+            for &ball2, j in game.balls[i + 1:] {
+                collision, hit := collision_circle_circle(
+                    ball.collider,
+                    ball.body.position,
+                    ball2.collider,
+                    ball2.body.position,
+                )
+                if hit {
+                    append(
+                        &collision_infoss,
+                        CollisionInfo{cast(u32)i, .Ball, cast(u32)(i + 1 + j), collision},
+                    )
+                }
+            }
+            for &border in game.borders {
+                collision, hit := collision_circle_rectangle(
+                    ball.collider,
+                    ball.body.position,
+                    border.collider,
+                    border.position,
+                )
+                if hit do append(&collision_infoss, CollisionInfo{cast(u32)i, .Border, 0, collision})
+            }
+        }
+        for &info in collision_infoss {
+            ball := &game.balls[info.ball_idx]
+            switch info.other_type {
+            case .Ball:
+                ball2 := &game.balls[info.other_idx]
+                resolve_ball_ball_collision(&ball.body, &ball2.body, &info.collision)
+            case .Border:
+                resolve_ball_border_collision(&ball.body, &info.collision)
+            }
+        }
     }
 }
