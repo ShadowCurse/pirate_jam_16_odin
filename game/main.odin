@@ -173,7 +173,15 @@ ball_draw :: proc(ball: ^Ball, surface: ^Texture, game: ^Game) {
         size     = {cast(u32)game.ball_texture.width, cast(u32)game.ball_texture.height},
     }
     sp := camera_to_screen(&game.camera, ball.body.position)
-    draw_texture(surface, &game.ball_texture, &area, sp, ignore_alpha = false)
+    draw_texture(
+        surface,
+        &game.ball_texture,
+        &area,
+        sp,
+        ignore_alpha = false,
+        tint = true,
+        tint_color = Color{r = 255, a = 128},
+    )
 }
 
 Border :: struct {

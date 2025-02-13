@@ -2,8 +2,18 @@ package game
 
 import "core:math"
 
-Color :: struct #align (4) {
-    using inner: [4]u8,
+Color :: struct #align(4) {
+    b: u8,
+    g: u8,
+    r: u8,
+    a: u8,
+}
+
+WHITE :: Color {
+    r = 255,
+    g = 255,
+    b = 255,
+    a = 255,
 }
 
 color_abgr_to_argb :: proc(color: ^Color) {
