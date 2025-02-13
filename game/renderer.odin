@@ -189,7 +189,7 @@ texture_rectangle_intersection :: proc(texture: ^Texture, rectangle: ^Rectangle)
     return aabb
 }
 
-draw_color_rectangle :: proc(surface: ^Texture, rectangle: ^Rectangle, color: Color) {
+rectangle_draw :: proc(surface: ^Texture, rectangle: ^Rectangle, color: Color) {
     intersection := texture_rectangle_intersection(surface, rectangle)
 
     width := width(&intersection)

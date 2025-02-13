@@ -26,7 +26,7 @@ runtime_init :: proc(memory: ^platform.Memory, surface_width: u16, surface_heigh
     log_info("Running the runtime for the first time")
     game_ptr, err := new(Game)
     assert(err == nil, "Cannot allocate game")
-    init_game(game_ptr, surface_width, surface_height)
+    game_init(game_ptr, surface_width, surface_height)
     return game_ptr
 }
 
@@ -74,7 +74,7 @@ runtime_run :: proc(
     }
 
     for &border in game.borders {
-        draw_border(&border, &surface, game)
+        border_draw(&border, &surface, game)
     }
 
     if input_state.rmb == .Pressed {
@@ -85,7 +85,7 @@ runtime_run :: proc(
         game.ball.body.acceleration = {}
     }
 
-    draw_ball(&game.ball, &surface, game)
+    ball_draw(&game.ball, &surface, game)
 
     {
         area := TextureArea {
@@ -125,7 +125,7 @@ Game :: struct {
     borders:       [4]Border,
 }
 
-init_game :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
+game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     game.table_texture = texture_load("./assets/table.png")
     game.ball_texture = texture_load("./assets/ball.png")
     game.hand_texture = texture_load("./assets/player_hand.png")
@@ -135,7 +135,7 @@ init_game :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     half_surface_size := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
     game.camera = {half_surface_size, -half_surface_size, 1.0}
 
-    game.ball = init_ball()
+    game.ball = ball_init()
     game.borders[0] = {
         position = {0, -272},
         collider = {{998, 50}},
@@ -163,11 +163,11 @@ Ball :: struct {
     collider: ColliderCircle,
 }
 
-init_ball :: proc() -> Ball {
+ball_init :: proc() -> Ball {
     return {body = {friction = 0.5, restitution = 0.8, inv_mass = 1.0}, collider = {10}}
 }
 
-draw_ball :: proc(ball: ^Ball, surface: ^Texture, game: ^Game) {
+ball_draw :: proc(ball: ^Ball, surface: ^Texture, game: ^Game) {
     area := TextureArea {
         position = {0, 0},
         size     = {cast(u32)game.ball_texture.width, cast(u32)game.ball_texture.height},
@@ -181,7 +181,7 @@ Border :: struct {
     collider: ColliderRectangle,
 }
 
-draw_border :: proc(border: ^Border, surface: ^Texture, game: ^Game) {
+border_draw :: proc(border: ^Border, surface: ^Texture, game: ^Game) {
     sp := camera_to_screen(&game.camera, border.position)
     rectangle := Rectangle {
         center = sp,
@@ -193,7 +193,7 @@ draw_border :: proc(border: ^Border, surface: ^Texture, game: ^Game) {
         b = 74,
         a = 255,
     }
-    draw_color_rectangle(surface, &rectangle, color)
+    rectangle_draw(surface, &rectangle, color)
 }
 
 ColliderRectangle :: struct {
@@ -277,14 +277,14 @@ resolve_ball_border_collision :: proc(ball_body: ^PhysicsBody, collision: ^Colli
     ball_body.velocity += impulse * ball_body.inv_mass
 }
 
-move_physics_body :: proc(body: ^PhysicsBody, dt: f32) {
+physics_body_move :: proc(body: ^PhysicsBody, dt: f32) {
     body.acceleration += -body.velocity * body.friction
     body.position = body.position + body.velocity * dt + body.acceleration * 0.5 * dt * dt
     body.velocity += body.acceleration * dt
 }
 
 process_physics :: proc(game: ^Game, dt: f32) {
-    move_physics_body(&game.ball.body, dt)
+    physics_body_move(&game.ball.body, dt)
 
     collisions, _ := make(
         [dynamic]Collision,
