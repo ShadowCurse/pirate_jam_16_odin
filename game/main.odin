@@ -49,8 +49,115 @@ runtime_run :: proc(
         channels = 4,
     }
 
-    camera_update_surface_size(&game.camera, cast(f32)surface_width, cast(f32)surface_height)
+    // camera_update_surface_size(&game.camera, cast(f32)surface_width, cast(f32)surface_height)
+    game_state_animate(game, dt)
+    defer render_commands_render(&game.render_commands, &surface, &game.camera)
 
+
+    if input_state.space == .Pressed {
+        if .MainMenu in game.state {
+            game_state_change(game, IN_GAME_STATE)
+        } else {
+            game_state_change(game, MAIN_MENU_STATE)
+        }
+    }
+
+    if .MainMenu in game.state {
+        game_main_menu(game)
+    }
+    if .InGame in game.state {
+        game_in_game(game, input_state, dt)
+    }
+
+    return game
+}
+
+Game :: struct {
+    render_commands:            RenderCommands,
+    table_texture:              Texture,
+    ball_texture:               Texture,
+    hand_texture:               Texture,
+    font:                       Font,
+    background:                 Soundtrack,
+    hit:                        Soundtrack,
+    audio:                      Audio,
+    camera:                     Camera,
+    balls:                      [9]Ball,
+    borders:                    [4]Border,
+    state:                      GlobalState,
+    state_transition_animation: StateTransitionAnimation,
+}
+
+
+GlobalStateInfo :: struct {
+    state:    GlobalState,
+    position: Vec2,
+}
+
+MAIN_MENU_STATE :: GlobalStateInfo{{.MainMenu}, {-1280 / 2 - 1280, -720 / 2}}
+IN_GAME_STATE :: GlobalStateInfo{{.InGame}, {-1280 / 2, -720 / 2}}
+
+States :: enum {
+    MainMenu,
+    InGame,
+    InGameShop,
+    Win,
+    Lose,
+}
+GlobalState :: bit_set[States]
+
+game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
+    game.render_commands.commands_n = 0
+    game.table_texture = texture_load("./assets/table.png")
+    game.ball_texture = texture_load("./assets/ball.png")
+    game.hand_texture = texture_load("./assets/player_hand.png")
+    game.font = font_load("./assets/NewRocker-Regular.ttf", 32.0)
+    game.background = soundtrack_load("./assets/background.wav")
+    game.hit = soundtrack_load("./assets/ball_hit.wav")
+    half_surface_size := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
+    game.camera = {half_surface_size, MAIN_MENU_STATE.position, 1.0}
+
+    ball_grid_left_top := Vec2{-11 * 2, -11 * 2}
+    for i in 0 ..< 3 {
+        for j in 0 ..< 3 {
+            game.balls[i * 3 + j] = ball_init(
+                ball_grid_left_top + {cast(f32)j * 22, cast(f32)i * 22},
+            )
+        }
+    }
+    game.borders[0] = {
+        position = {0, -272},
+        collider = {{998, 50}},
+    }
+    game.borders[1] = {
+        position = {0, 272},
+        collider = {{998, 50}},
+    }
+    game.borders[2] = {
+        position = {-500, 0},
+        collider = {{50, 545}},
+    }
+    game.borders[3] = {
+        position = {500, 0},
+        collider = {{50, 545}},
+    }
+
+    game.state = {.MainMenu}
+    game.state_transition_animation = {
+        progress = 1.0,
+    }
+
+    audio_init(&game.audio, 1.0)
+    audio_unpause(&game.audio)
+    // audio_play(&game.audio, game.background, 1.0, 1.0)
+}
+
+game_main_menu :: proc(game: ^Game) {
+    position := Vec2{1280 / 2, 40}
+    draw_text(&game.render_commands, &game.font, position, "Main menu", center = true)
+}
+
+game_in_game :: proc(game: ^Game, input_state: ^platform.InputState, dt: f32) {
     process_physics(game, dt)
 
     @(static) camera_enabled: bool = false
@@ -118,7 +225,7 @@ runtime_run :: proc(
     }
 
     {
-        position := Vec2{cast(f32)surface_width / 2, 40}
+        position := Vec2{1280 / 2, 40}
         draw_text(
             &game.render_commands,
             &game.font,
@@ -131,71 +238,37 @@ runtime_run :: proc(
     }
 
     {
-        right_volume := cast(f32)input_state.mouse_screen_positon.x / cast(f32)surface_width
+        right_volume := cast(f32)input_state.mouse_screen_positon.x / 1280
         left_volume := 1 - right_volume
         if input_state.lmb == .Pressed {
             audio_play(&game.audio, game.hit, left_volume, right_volume)
         }
     }
-
-    render_commands_render(&game.render_commands, &surface, &game.camera)
-
-    return game
 }
 
-Game :: struct {
-    render_commands: RenderCommands,
-    table_texture:   Texture,
-    ball_texture:    Texture,
-    hand_texture:    Texture,
-    font:            Font,
-    background:      Soundtrack,
-    hit:             Soundtrack,
-    audio:           Audio,
-    camera:          Camera,
-    balls:           [9]Ball,
-    borders:         [4]Border,
+STATE_TRANSITION_ANIMATION_TIME :: 1
+StateTransitionAnimation :: struct {
+    new_state: GlobalState,
+    velocity:  Vec2,
+    progress:  f32,
 }
 
-game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
-    game.render_commands.commands_n = 0
-    game.table_texture = texture_load("./assets/table.png")
-    game.ball_texture = texture_load("./assets/ball.png")
-    game.hand_texture = texture_load("./assets/player_hand.png")
-    game.font = font_load("./assets/NewRocker-Regular.ttf", 32.0)
-    game.background = soundtrack_load("./assets/background.wav")
-    game.hit = soundtrack_load("./assets/ball_hit.wav")
-    half_surface_size := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
-    game.camera = {half_surface_size, -half_surface_size, 1.0}
+game_state_change :: proc(game: ^Game, state_info: GlobalStateInfo) {
+    log_info("Transitioning to global state: %w", state_info.state)
+    game.state |= state_info.state
+    velocity := (state_info.position - game.camera.position) / STATE_TRANSITION_ANIMATION_TIME
+    game.state_transition_animation = {state_info.state, velocity, 0}
+}
 
-    ball_grid_left_top := Vec2{-11 * 2, -11 * 2}
-    for i in 0 ..< 3 {
-        for j in 0 ..< 3 {
-            game.balls[i * 3 + j] = ball_init(
-                ball_grid_left_top + {cast(f32)j * 22, cast(f32)i * 22},
-            )
-        }
-    }
-    game.borders[0] = {
-        position = {0, -272},
-        collider = {{998, 50}},
-    }
-    game.borders[1] = {
-        position = {0, 272},
-        collider = {{998, 50}},
-    }
-    game.borders[2] = {
-        position = {-500, 0},
-        collider = {{50, 545}},
-    }
-    game.borders[3] = {
-        position = {500, 0},
-        collider = {{50, 545}},
-    }
+game_state_animate :: proc(game: ^Game, dt: f32) {
+    if game.state_transition_animation.progress == 1.0 do return
 
-    audio_init(&game.audio, 1.0)
-    audio_unpause(&game.audio)
-    // audio_play(&game.audio, game.background, 1.0, 1.0)
+    game.camera.position += game.state_transition_animation.velocity * dt
+    game.state_transition_animation.progress += dt
+    if 1.0 <= game.state_transition_animation.progress {
+        game.state_transition_animation.progress = 1.0
+        game.state = game.state_transition_animation.new_state
+    }
 }
 
 Ball :: struct {
