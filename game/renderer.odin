@@ -77,6 +77,137 @@ texture_as_colors :: proc(texture: ^Texture) -> []Color {
     return slice.from_ptr(cast([^]Color)raw_data(texture.data), len(texture.data) / 4)
 }
 
+DrawColorRectangleCommand :: struct {
+    rectangle: Rectangle,
+    color:     Color,
+}
+
+DrawTextureCommand :: struct {
+    texture:        ^Texture,
+    texture_area:   TextureArea,
+    texture_center: Vec2,
+    ignore_alpha:   bool,
+    tint:           bool,
+    tint_color:     Color,
+}
+
+DrawTextureScaleRotate :: struct {
+    texture:         ^Texture,
+    texture_area:    TextureArea,
+    texture_center:  Vec2,
+    scale:           f32,
+    rotation:        f32,
+    rotation_offset: Vec2,
+    ignore_alpha:    bool,
+}
+
+RenderCommand :: union #no_nil {
+    DrawColorRectangleCommand,
+    DrawTextureCommand,
+    DrawTextureScaleRotate,
+}
+
+RENDER_COMMANDS_MAX :: 8192
+RenderCommands :: struct {
+    in_world_space: [RENDER_COMMANDS_MAX]bool,
+    commands:       [RENDER_COMMANDS_MAX]RenderCommand,
+    commands_n:     u32,
+}
+
+render_commands_add_color_rect :: proc(
+    render_commands: ^RenderCommands,
+    command: DrawColorRectangleCommand,
+    in_world_space := true,
+) {
+    if render_commands.commands_n == RENDER_COMMANDS_MAX {
+        log_err("Trying to add more render commands than capacity")
+        return
+    }
+
+    render_commands.commands[render_commands.commands_n] = command
+    render_commands.in_world_space[render_commands.commands_n] = in_world_space
+    render_commands.commands_n += 1
+}
+render_commands_add_texture :: proc(
+    render_commands: ^RenderCommands,
+    command: DrawTextureCommand,
+    in_world_space := true,
+) {
+    if render_commands.commands_n == RENDER_COMMANDS_MAX {
+        log_err("Trying to add more render commands than capacity")
+        return
+    }
+
+    render_commands.commands[render_commands.commands_n] = command
+    render_commands.in_world_space[render_commands.commands_n] = in_world_space
+    render_commands.commands_n += 1
+}
+render_commands_add_texture_scale_rotate :: proc(
+    render_commands: ^RenderCommands,
+    command: DrawTextureScaleRotate,
+    in_world_space := true,
+) {
+    if render_commands.commands_n == RENDER_COMMANDS_MAX {
+        log_err("Trying to add more render commands than capacity")
+        return
+    }
+
+    render_commands.commands[render_commands.commands_n] = command
+    render_commands.in_world_space[render_commands.commands_n] = in_world_space
+    render_commands.commands_n += 1
+}
+render_commands_add :: proc {
+    render_commands_add_color_rect,
+    render_commands_add_texture,
+    render_commands_add_texture_scale_rotate,
+}
+
+render_commands_render :: proc(
+    render_commands: ^RenderCommands,
+    surface: ^Texture,
+    camera: ^Camera,
+) {
+    for &command, i in render_commands.commands[:render_commands.commands_n] {
+        to_screen_space := render_commands.in_world_space[i]
+        switch &c in command {
+        case DrawColorRectangleCommand:
+            if to_screen_space {
+                c.rectangle.center = camera_to_screen(camera, c.rectangle.center)
+            }
+            draw_rectangle(surface, &c.rectangle, c.color)
+        case DrawTextureCommand:
+            if to_screen_space {
+                c.texture_center = camera_to_screen(camera, c.texture_center)
+            }
+            draw_texture(
+                surface,
+                c.texture,
+                &c.texture_area,
+                c.texture_center,
+                c.ignore_alpha,
+                c.tint,
+                c.tint_color,
+            )
+        case DrawTextureScaleRotate:
+            if to_screen_space {
+                c.texture_center = camera_to_screen(camera, c.texture_center)
+            }
+            draw_texture_scale_rotate(
+                surface,
+                c.texture,
+                &c.texture_area,
+                c.texture_center,
+                c.scale,
+                c.rotation,
+                c.rotation_offset,
+                c.ignore_alpha,
+            )
+        }
+    }
+
+    render_commands.commands_n = 0
+}
+
 // Note: everyting in the renderer is in the screen space coordinate
 // system. So Y is looking down. This means the TOP is at the lowest
 // Y coord, while BOTTOM is at the highest Y.
@@ -189,7 +320,7 @@ texture_rectangle_intersection :: proc(texture: ^Texture, rectangle: ^Rectangle)
     return aabb
 }
 
-rectangle_draw :: proc(surface: ^Texture, rectangle: ^Rectangle, color: Color) {
+draw_rectangle :: proc(surface: ^Texture, rectangle: ^Rectangle, color: Color) {
     intersection := texture_rectangle_intersection(surface, rectangle)
 
     width := width(&intersection)

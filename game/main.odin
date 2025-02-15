@@ -69,12 +69,19 @@ runtime_run :: proc(
             size     = {cast(u32)game.table_texture.width, cast(u32)game.table_texture.height},
         }
         position := Vec2{}
-        sp := camera_to_screen(&game.camera, position)
-        draw_texture(&surface, &game.table_texture, &area, sp)
+        render_commands_add(
+            &game.render_commands,
+            DrawTextureCommand {
+                texture = &game.table_texture,
+                texture_area = area,
+                texture_center = position,
+                ignore_alpha = true,
+            },
+        )
     }
 
     for &border in game.borders {
-        border_draw(&border, &surface, game)
+        border_draw(&border, game)
     }
 
     if input_state.rmb == .Pressed {
@@ -91,7 +98,7 @@ runtime_run :: proc(
     }
 
     for &ball in game.balls {
-        ball_draw(&ball, &surface, game)
+        ball_draw(&ball, game)
     }
 
     {
@@ -100,12 +107,28 @@ runtime_run :: proc(
             size     = {cast(u32)game.hand_texture.width, cast(u32)game.hand_texture.height},
         }
         position := vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
-        draw_texture(&surface, &game.hand_texture, &area, position, ignore_alpha = false)
+        render_commands_add(
+            &game.render_commands,
+            DrawTextureCommand {
+                texture = &game.hand_texture,
+                texture_area = area,
+                texture_center = position,
+            },
+            in_world_space = false,
+        )
     }
 
     {
         position := Vec2{cast(f32)surface_width / 2, 40}
-        draw_text(&surface, &game.font, position, "FPS: %f.1 DT: %f.1", 1 / dt, dt, center = true)
+        draw_text(
+            &game.render_commands,
+            &game.font,
+            position,
+            "FPS: %f.1 DT: %f.1",
+            1 / dt,
+            dt,
+            center = true,
+        )
     }
 
     {
@@ -116,23 +139,27 @@ runtime_run :: proc(
         }
     }
 
+    render_commands_render(&game.render_commands, &surface, &game.camera)
+
     return game
 }
 
 Game :: struct {
-    table_texture: Texture,
-    ball_texture:  Texture,
-    hand_texture:  Texture,
-    font:          Font,
-    background:    Soundtrack,
-    hit:           Soundtrack,
-    audio:         Audio,
-    camera:        Camera,
-    balls:         [9]Ball,
-    borders:       [4]Border,
+    render_commands: RenderCommands,
+    table_texture:   Texture,
+    ball_texture:    Texture,
+    hand_texture:    Texture,
+    font:            Font,
+    background:      Soundtrack,
+    hit:             Soundtrack,
+    audio:           Audio,
+    camera:          Camera,
+    balls:           [9]Ball,
+    borders:         [4]Border,
 }
 
 game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
+    game.render_commands.commands_n = 0
     game.table_texture = texture_load("./assets/table.png")
     game.ball_texture = texture_load("./assets/ball.png")
     game.hand_texture = texture_load("./assets/player_hand.png")
@@ -184,20 +211,21 @@ ball_init :: proc(position: Vec2) -> Ball {
     }
 }
 
-ball_draw :: proc(ball: ^Ball, surface: ^Texture, game: ^Game) {
+ball_draw :: proc(ball: ^Ball, game: ^Game) {
     area := TextureArea {
         position = {0, 0},
         size     = {cast(u32)game.ball_texture.width, cast(u32)game.ball_texture.height},
     }
-    sp := camera_to_screen(&game.camera, ball.body.position)
-    draw_texture(
-        surface,
-        &game.ball_texture,
-        &area,
-        sp,
-        ignore_alpha = false,
-        tint = true,
-        tint_color = Color{r = 255, a = 128},
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.ball_texture,
+            texture_area = area,
+            texture_center = ball.body.position,
+            ignore_alpha = false,
+            tint = true,
+            tint_color = Color{r = 255, a = 128},
+        },
     )
 }
 
@@ -206,10 +234,9 @@ Border :: struct {
     collider: ColliderRectangle,
 }
 
-border_draw :: proc(border: ^Border, surface: ^Texture, game: ^Game) {
-    sp := camera_to_screen(&game.camera, border.position)
+border_draw :: proc(border: ^Border, game: ^Game) {
     rectangle := Rectangle {
-        center = sp,
+        center = border.position,
         size   = border.collider.size * game.camera.scale,
     }
     color := Color {
@@ -218,7 +245,7 @@ border_draw :: proc(border: ^Border, surface: ^Texture, game: ^Game) {
         b = 74,
         a = 255,
     }
-    rectangle_draw(surface, &rectangle, color)
+    render_commands_add(&game.render_commands, DrawColorRectangleCommand{rectangle, color})
 }
 
 ColliderRectangle :: struct {

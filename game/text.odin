@@ -97,7 +97,7 @@ CharDrawInfo :: struct {
 }
 
 draw_text :: proc(
-    surface: ^Texture,
+    render_commands: ^RenderCommands,
     font: ^Font,
     position: Vec2,
     format: string,
@@ -116,7 +116,7 @@ draw_text :: proc(
 
         if char == '\n' {
             draw_text_line(
-                surface,
+                render_commands,
                 font,
                 char_draw_infos[line_start_index:i],
                 global_offset.x,
@@ -153,11 +153,17 @@ draw_text :: proc(
         global_offset.x += char_info.xadvance
     }
 
-    draw_text_line(surface, font, char_draw_infos[line_start_index:], global_offset.x, center)
+    draw_text_line(
+        render_commands,
+        font,
+        char_draw_infos[line_start_index:],
+        global_offset.x,
+        center,
+    )
 }
 
 draw_text_line :: proc(
-    surface: ^Texture,
+    render_commands: ^RenderCommands,
     font: ^Font,
     char_draw_infos: []CharDrawInfo,
     total_width: f32,
@@ -171,12 +177,15 @@ draw_text_line :: proc(
     }
 
     for &cdi in char_draw_infos {
-        draw_texture(
-            surface,
-            &font.texture,
-            &cdi.texture_area,
-            cdi.screen_position,
-            ignore_alpha = false,
+        render_commands_add(
+            render_commands,
+            DrawTextureCommand {
+                texture = &font.texture,
+                texture_area = cdi.texture_area,
+                texture_center = cdi.screen_position,
+                ignore_alpha = false,
+            },
+            in_world_space = false,
         )
     }
 }
