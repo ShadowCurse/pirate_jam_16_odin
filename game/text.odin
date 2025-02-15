@@ -96,12 +96,13 @@ CharDrawInfo :: struct {
     texture_area:    TextureArea,
 }
 
-draw_text :: proc(
+render_commands_add_text :: proc(
     render_commands: ^RenderCommands,
     font: ^Font,
     position: Vec2,
     format: string,
     args: ..any,
+    in_world_space := true,
     center := false,
     kerning := true,
 ) {
@@ -115,11 +116,12 @@ draw_text :: proc(
         char_draw_info := &char_draw_infos[i]
 
         if char == '\n' {
-            draw_text_line(
+            add_chars(
                 render_commands,
                 font,
                 char_draw_infos[line_start_index:i],
                 global_offset.x,
+                in_world_space,
                 center,
             )
             line_start_index = i + 1
@@ -153,20 +155,22 @@ draw_text :: proc(
         global_offset.x += char_info.xadvance
     }
 
-    draw_text_line(
+    add_chars(
         render_commands,
         font,
         char_draw_infos[line_start_index:],
         global_offset.x,
+        in_world_space,
         center,
     )
 }
 
-draw_text_line :: proc(
+add_chars :: proc(
     render_commands: ^RenderCommands,
     font: ^Font,
     char_draw_infos: []CharDrawInfo,
     total_width: f32,
+    in_world_space := true,
     center := false,
 ) {
     if center {
@@ -185,7 +189,7 @@ draw_text_line :: proc(
                 texture_center = cdi.screen_position,
                 ignore_alpha = false,
             },
-            in_world_space = false,
+            in_world_space = in_world_space,
         )
     }
 }

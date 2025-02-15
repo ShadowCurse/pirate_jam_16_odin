@@ -54,6 +54,21 @@ runtime_run :: proc(
     defer render_commands_render(&game.render_commands, &surface, &game.camera)
 
 
+    {
+        position := Vec2{1280 / 2, 40}
+        render_commands_add(
+            &game.render_commands,
+            &game.font,
+            position,
+            "FPS: %f.1 DT: %f.1",
+            1 / dt,
+            dt,
+            center = true,
+            in_world_space = false,
+        )
+    }
+
+
     if input_state.space == .Pressed {
         if .MainMenu in game.state {
             game_state_change(game, IN_GAME_STATE)
@@ -153,8 +168,15 @@ game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
 }
 
 game_main_menu :: proc(game: ^Game) {
-    position := Vec2{1280 / 2, 40}
-    draw_text(&game.render_commands, &game.font, position, "Main menu", center = true)
+    position := Vec2{-1280, -40}
+    render_commands_add(
+        &game.render_commands,
+        &game.font,
+        position,
+        "Main menu",
+        center = true,
+        in_world_space = true,
+    )
 }
 
 game_in_game :: proc(game: ^Game, input_state: ^platform.InputState, dt: f32) {
@@ -221,19 +243,6 @@ game_in_game :: proc(game: ^Game, input_state: ^platform.InputState, dt: f32) {
                 texture_center = position,
             },
             in_world_space = false,
-        )
-    }
-
-    {
-        position := Vec2{1280 / 2, 40}
-        draw_text(
-            &game.render_commands,
-            &game.font,
-            position,
-            "FPS: %f.1 DT: %f.1",
-            1 / dt,
-            dt,
-            center = true,
         )
     }
 

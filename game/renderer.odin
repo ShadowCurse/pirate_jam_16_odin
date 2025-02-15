@@ -160,6 +160,7 @@ render_commands_add :: proc {
     render_commands_add_color_rect,
     render_commands_add_texture,
     render_commands_add_texture_scale_rotate,
+    render_commands_add_text,
 }
 
 render_commands_render :: proc(
