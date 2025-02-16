@@ -76,6 +76,9 @@ cm_position_balls :: proc(bodies: []PhysicsBody, tip_position: Vec2, direction: 
 cm_update_and_draw :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
     cm_draw_table(game)
     cm_draw_balls(mode, game)
+
+    back := ui_draw_button(game, {500, 320}, "Back")
+    if back && game.input.lmb == .Pressed do game_state_change(game, MAIN_MENU_STATE)
 }
 
 cm_draw_table :: proc(game: ^Game) {

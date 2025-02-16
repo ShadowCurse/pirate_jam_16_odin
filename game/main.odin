@@ -96,6 +96,8 @@ Game :: struct {
     table_texture:              Texture,
     ball_texture:               Texture,
     hand_texture:               Texture,
+    button_normal_texture:      Texture,
+    button_hover_texture:       Texture,
     font:                       Font,
     background:                 Soundtrack,
     hit:                        Soundtrack,
@@ -156,6 +158,8 @@ game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     game.table_texture = texture_load("./assets/table.png")
     game.ball_texture = texture_load("./assets/ball.png")
     game.hand_texture = texture_load("./assets/player_hand.png")
+    game.button_normal_texture = texture_load("./assets/button.png")
+    game.button_hover_texture = texture_load("./assets/button_hover.png")
     game.font = font_load("./assets/NewRocker-Regular.ttf", 32.0)
     game.background = soundtrack_load("./assets/background.wav")
     game.hit = soundtrack_load("./assets/ball_hit.wav")
@@ -200,7 +204,7 @@ game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
 }
 
 game_main_menu :: proc(game: ^Game) {
-    position := Vec2{-1280, -40}
+    position := Vec2{-1280, -80}
     render_commands_add(
         &game.render_commands,
         &game.font,
@@ -210,7 +214,8 @@ game_main_menu :: proc(game: ^Game) {
         in_world_space = true,
     )
 
-    if game.input.space == .Pressed {
+    classic_mode := ui_draw_button(game, position + {0, 80}, "Classic")
+    if classic_mode && game.input.lmb == .Pressed {
         game.mode = cm_new(game)
         game_state_change(game, IN_GAME_STATE)
     }
