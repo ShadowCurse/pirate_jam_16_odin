@@ -53,7 +53,6 @@ runtime_run :: proc(
     game_state_animate(game, dt)
     defer render_commands_render(&game.render_commands, &surface, &game.camera)
 
-
     {
         position := Vec2{1280 / 2, 40}
         render_commands_add(
@@ -68,21 +67,27 @@ runtime_run :: proc(
         )
     }
 
-
-    if input_state.space == .Pressed {
-        if .MainMenu in game.state {
-            game_state_change(game, IN_GAME_STATE)
-        } else {
-            game_state_change(game, MAIN_MENU_STATE)
-        }
-    }
-
     if .MainMenu in game.state {
-        game_main_menu(game)
+        game_main_menu(game, input_state)
     }
     if .InGame in game.state {
         game_in_game(game, input_state, dt)
     }
+
+    area := TextureArea {
+        position = {0, 0},
+        size     = {cast(u32)game.hand_texture.width, cast(u32)game.hand_texture.height},
+    }
+    position := vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.hand_texture,
+            texture_area = area,
+            texture_center = position,
+        },
+        in_world_space = false,
+    )
 
     return game
 }
@@ -101,8 +106,8 @@ Game :: struct {
     borders:                    [4]Border,
     state:                      GlobalState,
     state_transition_animation: StateTransitionAnimation,
+    mode:                       GameMode,
 }
-
 
 GlobalStateInfo :: struct {
     state:    GlobalState,
@@ -120,6 +125,10 @@ States :: enum {
     Lose,
 }
 GlobalState :: bit_set[States]
+
+GameMode :: union {
+    ClassicMode,
+}
 
 game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     game.render_commands.commands_n = 0
@@ -162,12 +171,14 @@ game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
         progress = 1.0,
     }
 
+    game.mode = nil
+
     audio_init(&game.audio, 1.0)
     audio_unpause(&game.audio)
     // audio_play(&game.audio, game.background, 1.0, 1.0)
 }
 
-game_main_menu :: proc(game: ^Game) {
+game_main_menu :: proc(game: ^Game, input_state: ^platform.InputState) {
     position := Vec2{-1280, -40}
     render_commands_add(
         &game.render_commands,
@@ -177,81 +188,17 @@ game_main_menu :: proc(game: ^Game) {
         center = true,
         in_world_space = true,
     )
+
+    if input_state.space == .Pressed {
+        game.mode = cm_new(game)
+        game_state_change(game, IN_GAME_STATE)
+    }
 }
 
 game_in_game :: proc(game: ^Game, input_state: ^platform.InputState, dt: f32) {
-    process_physics(game, dt)
-
-    @(static) camera_enabled: bool = false
-    if camera_enabled || input_state.lmb == .Pressed {
-        camera_enabled = true
-        game.camera.position += vec2_cast_f32(cast(Vec2i32)input_state.mouse_delta)
-    }
-    if input_state.lmb == .Released {
-        camera_enabled = false
-    }
-
-    {
-        area := TextureArea {
-            position = {0, 0},
-            size     = {cast(u32)game.table_texture.width, cast(u32)game.table_texture.height},
-        }
-        position := Vec2{}
-        render_commands_add(
-            &game.render_commands,
-            DrawTextureCommand {
-                texture = &game.table_texture,
-                texture_area = area,
-                texture_center = position,
-                ignore_alpha = true,
-            },
-        )
-    }
-
-    for &border in game.borders {
-        border_draw(&border, game)
-    }
-
-    if input_state.rmb == .Pressed {
-        for &ball in game.balls {
-            ball_screen_space := camera_to_screen(&game.camera, ball.body.position)
-            to_ball :=
-                ball_screen_space - vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
-            ball.body.acceleration = to_ball * 500
-        }
-    } else {
-        for &ball in game.balls {
-            ball.body.acceleration = {}
-        }
-    }
-
-    for &ball in game.balls {
-        ball_draw(&ball, game)
-    }
-
-    {
-        area := TextureArea {
-            position = {0, 0},
-            size     = {cast(u32)game.hand_texture.width, cast(u32)game.hand_texture.height},
-        }
-        position := vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
-        render_commands_add(
-            &game.render_commands,
-            DrawTextureCommand {
-                texture = &game.hand_texture,
-                texture_area = area,
-                texture_center = position,
-            },
-            in_world_space = false,
-        )
-    }
-
-    {
-        right_volume := cast(f32)input_state.mouse_screen_positon.x / 1280
-        left_volume := 1 - right_volume
-        if input_state.lmb == .Pressed {
-            audio_play(&game.audio, game.hit, left_volume, right_volume)
-        }
+    switch &m in game.mode {
+    case ClassicMode:
+        cm_update_and_draw(&m, game, input_state, dt)
     }
 }
 
@@ -280,6 +227,7 @@ game_state_animate :: proc(game: ^Game, dt: f32) {
     }
 }
 
+BALL_RADIUS: f32 = 10
 Ball :: struct {
     body:     PhysicsBody,
     collider: ColliderCircle,
