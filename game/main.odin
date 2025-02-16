@@ -48,8 +48,8 @@ runtime_run :: proc(
         height   = surface_height,
         channels = 4,
     }
-
-    // camera_update_surface_size(&game.camera, cast(f32)surface_width, cast(f32)surface_height)
+    camera_update_surface_size(&game.camera, cast(f32)surface_width, cast(f32)surface_height)
+    game_update_input(game, input_state)
     game_state_animate(game, dt)
     defer render_commands_render(&game.render_commands, &surface, &game.camera)
 
@@ -68,23 +68,22 @@ runtime_run :: proc(
     }
 
     if .MainMenu in game.state {
-        game_main_menu(game, input_state)
+        game_main_menu(game)
     }
     if .InGame in game.state {
-        game_in_game(game, input_state, dt)
+        game_in_game(game, dt)
     }
 
     area := TextureArea {
         position = {0, 0},
         size     = {cast(u32)game.hand_texture.width, cast(u32)game.hand_texture.height},
     }
-    position := vec2_cast_f32(cast(Vec2i32)input_state.mouse_screen_positon)
     render_commands_add(
         &game.render_commands,
         DrawTextureCommand {
             texture = &game.hand_texture,
             texture_area = area,
-            texture_center = position,
+            texture_center = vec2_cast_f32(game.input.mouse_screen_positon),
         },
         in_world_space = false,
     )
@@ -107,6 +106,28 @@ Game :: struct {
     state:                      GlobalState,
     state_transition_animation: StateTransitionAnimation,
     mode:                       GameMode,
+    input:                      GameInput,
+}
+
+GameInput :: struct {
+    lmb:                  platform.KeyState,
+    rmb:                  platform.KeyState,
+    space:                platform.KeyState,
+    mouse_screen_positon: Vec2i32,
+    mouse_world_positon:  Vec2,
+    mouse_delta:          Vec2i32,
+}
+
+game_update_input :: proc(game: ^Game, platform_input: ^platform.InputState) {
+    game.input.lmb = platform_input.lmb
+    game.input.rmb = platform_input.rmb
+    game.input.space = platform_input.space
+    game.input.mouse_screen_positon = cast(Vec2i32)platform_input.mouse_screen_positon
+    game.input.mouse_world_positon = camera_to_world(
+        &game.camera,
+        vec2_cast_f32(game.input.mouse_screen_positon),
+    )
+    game.input.mouse_delta = cast(Vec2i32)platform_input.mouse_delta
 }
 
 GlobalStateInfo :: struct {
@@ -178,7 +199,7 @@ game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     // audio_play(&game.audio, game.background, 1.0, 1.0)
 }
 
-game_main_menu :: proc(game: ^Game, input_state: ^platform.InputState) {
+game_main_menu :: proc(game: ^Game) {
     position := Vec2{-1280, -40}
     render_commands_add(
         &game.render_commands,
@@ -189,16 +210,16 @@ game_main_menu :: proc(game: ^Game, input_state: ^platform.InputState) {
         in_world_space = true,
     )
 
-    if input_state.space == .Pressed {
+    if game.input.space == .Pressed {
         game.mode = cm_new(game)
         game_state_change(game, IN_GAME_STATE)
     }
 }
 
-game_in_game :: proc(game: ^Game, input_state: ^platform.InputState, dt: f32) {
+game_in_game :: proc(game: ^Game, dt: f32) {
     switch &m in game.mode {
     case ClassicMode:
-        cm_update_and_draw(&m, game, input_state, dt)
+        cm_update_and_draw(&m, game, dt)
     }
 }
 

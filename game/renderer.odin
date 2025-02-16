@@ -24,6 +24,10 @@ camera_to_screen :: proc(camera: ^Camera, position: Vec2) -> Vec2 {
     )
 }
 
+camera_to_world :: proc(camera: ^Camera, position: Vec2) -> Vec2 {
+    return position + camera.position
+}
+
 Texture :: struct {
     data:     []u8,
     width:    u16,
@@ -251,6 +255,15 @@ rectangle_top :: proc(rectangle: ^Rectangle) -> f32 {
 }
 rectangle_bottom :: proc(rectangle: ^Rectangle) -> f32 {
     return rectangle.center.y + rectangle.size.y / 2
+}
+
+rectangle_contains :: proc(rectangle: ^Rectangle, point: Vec2) -> bool {
+    return(
+        left(rectangle) <= point.x &&
+        point.x <= right(rectangle) &&
+        top(rectangle) <= point.y &&
+        point.y <= bottom(rectangle) \
+    )
 }
 
 left :: proc {

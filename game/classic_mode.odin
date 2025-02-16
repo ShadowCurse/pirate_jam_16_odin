@@ -1,6 +1,5 @@
 package game
 
-import "../platform"
 import "core:math"
 import "core:math/linalg"
 
@@ -74,12 +73,7 @@ cm_position_balls :: proc(bodies: []PhysicsBody, tip_position: Vec2, direction: 
     }
 }
 
-cm_update_and_draw :: proc(
-    mode: ^ClassicMode,
-    game: ^Game,
-    input_state: ^platform.InputState,
-    dt: f32,
-) {
+cm_update_and_draw :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
     cm_draw_table(game)
     cm_draw_balls(mode, game)
 }
