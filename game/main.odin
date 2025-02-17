@@ -94,6 +94,8 @@ runtime_run :: proc(
 Game :: struct {
     render_commands:            RenderCommands,
     table_texture:              Texture,
+    cue_background_texture:     Texture,
+    cue_default_texture:        Texture,
     ball_texture:               Texture,
     hand_texture:               Texture,
     button_normal_texture:      Texture,
@@ -156,6 +158,8 @@ GameMode :: union {
 game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     game.render_commands.commands_n = 0
     game.table_texture = texture_load("./assets/table.png")
+    game.cue_background_texture = texture_load("./assets/cue_background.png")
+    game.cue_default_texture = texture_load("./assets/cue_default.png")
     game.ball_texture = texture_load("./assets/ball.png")
     game.hand_texture = texture_load("./assets/player_hand.png")
     game.button_normal_texture = texture_load("./assets/button.png")
