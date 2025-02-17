@@ -74,15 +74,11 @@ runtime_run :: proc(
         game_in_game(game, dt)
     }
 
-    area := TextureArea {
-        position = {0, 0},
-        size     = {cast(u32)game.hand_texture.width, cast(u32)game.hand_texture.height},
-    }
     render_commands_add(
         &game.render_commands,
         DrawTextureCommand {
             texture = &game.hand_texture,
-            texture_area = area,
+            texture_area = texture_full_area(&game.hand_texture),
             texture_center = vec2_cast_f32(game.input.mouse_screen_positon),
         },
         in_world_space = false,
@@ -271,15 +267,11 @@ ball_init :: proc(position: Vec2) -> Ball {
 }
 
 ball_draw :: proc(ball: ^Ball, game: ^Game) {
-    area := TextureArea {
-        position = {0, 0},
-        size     = {cast(u32)game.ball_texture.width, cast(u32)game.ball_texture.height},
-    }
     render_commands_add(
         &game.render_commands,
         DrawTextureCommand {
             texture = &game.ball_texture,
-            texture_area = area,
+            texture_area = texture_full_area(&game.ball_texture),
             texture_center = ball.body.position,
             ignore_alpha = false,
             tint = true,

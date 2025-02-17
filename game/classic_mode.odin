@@ -83,17 +83,12 @@ cm_update_and_draw :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
 }
 
 cm_draw_table :: proc(game: ^Game) {
-    area := TextureArea {
-        position = {0, 0},
-        size     = {cast(u32)game.table_texture.width, cast(u32)game.table_texture.height},
-    }
-    position := Vec2{}
     render_commands_add(
         &game.render_commands,
         DrawTextureCommand {
             texture = &game.table_texture,
-            texture_area = area,
-            texture_center = position,
+            texture_area = texture_full_area(&game.table_texture),
+            texture_center = {},
             ignore_alpha = true,
         },
     )
@@ -101,15 +96,11 @@ cm_draw_table :: proc(game: ^Game) {
 
 cm_draw_balls :: proc(mode: ^ClassicMode, game: ^Game) {
     for ball_body in mode.balls.body {
-        area := TextureArea {
-            position = {0, 0},
-            size     = {cast(u32)game.ball_texture.width, cast(u32)game.ball_texture.height},
-        }
         render_commands_add(
             &game.render_commands,
             DrawTextureCommand {
                 texture = &game.ball_texture,
-                texture_area = area,
+                texture_area = texture_full_area(&game.ball_texture),
                 texture_center = ball_body.position,
                 ignore_alpha = false,
                 tint = true,
@@ -130,117 +121,63 @@ cm_draw_cues :: proc(mode: ^ClassicMode, game: ^Game) {
     PLAYER_CUES_BACKGROUND :: Vec2{-570, 0}
     OPPONENT_CUES_BACKGROUND :: Vec2{570, 0}
 
-    {
-        area := TextureArea {
-            position = {0, 0},
-            size     = {
-                cast(u32)game.cue_background_texture.width,
-                cast(u32)game.cue_background_texture.height,
-            },
-        }
-        render_commands_add(
-            &game.render_commands,
-            DrawTextureCommand {
-                texture = &game.cue_background_texture,
-                texture_area = area,
-                texture_center = PLAYER_CUES_BACKGROUND,
-                ignore_alpha = true,
-            },
-        )
-    }
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.cue_background_texture,
+            texture_area = texture_full_area(&game.cue_background_texture),
+            texture_center = PLAYER_CUES_BACKGROUND,
+            ignore_alpha = true,
+        },
+    )
 
-    {
-        area := TextureArea {
-            position = {0, 0},
-            size     = {
-                cast(u32)game.cue_default_texture.width,
-                cast(u32)game.cue_default_texture.height,
-            },
-        }
-        render_commands_add(
-            &game.render_commands,
-            DrawTextureCommand {
-                texture = &game.cue_default_texture,
-                texture_area = area,
-                texture_center = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(0),
-                ignore_alpha = false,
-            },
-        )
-    }
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.cue_default_texture,
+            texture_area = texture_full_area(&game.cue_default_texture),
+            texture_center = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(0),
+            ignore_alpha = false,
+        },
+    )
 
-    {
-        area := TextureArea {
-            position = {0, 0},
-            size     = {
-                cast(u32)game.cue_default_texture.width,
-                cast(u32)game.cue_default_texture.height,
-            },
-        }
-        render_commands_add(
-            &game.render_commands,
-            DrawTextureCommand {
-                texture = &game.cue_default_texture,
-                texture_area = area,
-                texture_center = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(1),
-                ignore_alpha = false,
-            },
-        )
-    }
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.cue_default_texture,
+            texture_area = texture_full_area(&game.cue_default_texture),
+            texture_center = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(1),
+            ignore_alpha = false,
+        },
+    )
 
-    {
-        area := TextureArea {
-            position = {0, 0},
-            size     = {
-                cast(u32)game.cue_background_texture.width,
-                cast(u32)game.cue_background_texture.height,
-            },
-        }
-        render_commands_add(
-            &game.render_commands,
-            DrawTextureCommand {
-                texture = &game.cue_background_texture,
-                texture_area = area,
-                texture_center = OPPONENT_CUES_BACKGROUND,
-                ignore_alpha = true,
-            },
-        )
-    }
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.cue_background_texture,
+            texture_area = texture_full_area(&game.cue_background_texture),
+            texture_center = OPPONENT_CUES_BACKGROUND,
+            ignore_alpha = true,
+        },
+    )
 
-    {
-        area := TextureArea {
-            position = {0, 0},
-            size     = {
-                cast(u32)game.cue_default_texture.width,
-                cast(u32)game.cue_default_texture.height,
-            },
-        }
-        render_commands_add(
-            &game.render_commands,
-            DrawTextureCommand {
-                texture = &game.cue_default_texture,
-                texture_area = area,
-                texture_center = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(0),
-                ignore_alpha = false,
-            },
-        )
-    }
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.cue_default_texture,
+            texture_area = texture_full_area(&game.cue_default_texture),
+            texture_center = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(0),
+            ignore_alpha = false,
+        },
+    )
 
-    {
-        area := TextureArea {
-            position = {0, 0},
-            size     = {
-                cast(u32)game.cue_default_texture.width,
-                cast(u32)game.cue_default_texture.height,
-            },
-        }
-        render_commands_add(
-            &game.render_commands,
-            DrawTextureCommand {
-                texture = &game.cue_default_texture,
-                texture_area = area,
-                texture_center = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(1),
-                ignore_alpha = false,
-            },
-        )
-    }
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.cue_default_texture,
+            texture_area = texture_full_area(&game.cue_default_texture),
+            texture_center = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(1),
+            ignore_alpha = false,
+        },
+    )
 }

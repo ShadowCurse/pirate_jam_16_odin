@@ -9,15 +9,11 @@ ui_draw_button :: proc(game: ^Game, position: Vec2, format: string, args: ..any)
     texture := &game.button_normal_texture
     if hovered do texture = &game.button_hover_texture
 
-    area := TextureArea {
-        position = {0, 0},
-        size     = {cast(u32)texture.width, cast(u32)texture.height},
-    }
     render_commands_add(
         &game.render_commands,
         DrawTextureCommand {
             texture = texture,
-            texture_area = area,
+            texture_area = texture_full_area(texture),
             texture_center = position,
             ignore_alpha = false,
         },

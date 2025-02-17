@@ -65,6 +65,10 @@ texture_load :: proc(path: cstring) -> Texture {
     return texture
 }
 
+texture_full_area :: proc(texturn: ^Texture) -> TextureArea {
+    return TextureArea{position = {0, 0}, size = {cast(u32)texturn.width, cast(u32)texturn.height}}
+}
+
 texture_convert_abgr_to_argb :: proc(texture: ^Texture) {
     texture_colors := texture_as_colors(texture)
     for &color in texture_colors {
