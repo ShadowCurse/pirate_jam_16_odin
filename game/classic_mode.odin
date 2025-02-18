@@ -3,12 +3,14 @@ package game
 import "core:math"
 import "core:math/linalg"
 
+BALL_NOT_SELECTED :: 255
 ClassicMode :: struct {
-    player:     PlayerInfo,
-    opponent:   PlayerInfo,
-    turn_owner: TurnOwner,
-    turn_state: TurnState,
-    balls:      #soa[PLAYER_BALL_COUNT * 2]Ball,
+    player:        PlayerInfo,
+    opponent:      PlayerInfo,
+    turn_owner:    TurnOwner,
+    turn_state:    TurnState,
+    selected_ball: u8,
+    balls:         #soa[PLAYER_BALL_COUNT * 2]Ball,
 }
 
 TurnOwner :: enum {
@@ -89,6 +91,7 @@ cm_new :: proc(game: ^Game) -> ClassicMode {
 
     cm_position_balls(player_balls, PLAYER_TIP_POSITION, PLAYER_DIRECTION)
     cm_position_balls(opponent_balls, OPPONENT_TIP_POSITION, OPPONENT_DIRECTION)
+    mode.selected_ball = BALL_NOT_SELECTED
 
     return mode
 }
@@ -113,7 +116,14 @@ cm_position_balls :: proc(bodies: []PhysicsBody, tip_position: Vec2, direction: 
 }
 
 cm_update_and_draw :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
-    cm_cue_aim(&mode.player.cues[0], {}, game.input.mouse_world_positon)
+    cm_select_ball(mode, game)
+    if mode.selected_ball != BALL_NOT_SELECTED {
+        cm_cue_aim(
+            &mode.player.cues[0],
+            mode.balls[mode.selected_ball].body.position,
+            game.input.mouse_world_positon,
+        )
+    }
 
     cm_draw_table(game)
     cm_draw_balls(mode, game)
@@ -135,8 +145,35 @@ cm_draw_table :: proc(game: ^Game) {
     )
 }
 
+cm_select_ball :: proc(mode: ^ClassicMode, game: ^Game) {
+    if game.input.lmb == .Pressed do mode.selected_ball = BALL_NOT_SELECTED
+    for ball_body, i in mode.balls.body {
+        if cm_ball_hovered(ball_body.position, game.input.mouse_world_positon) {
+            if game.input.lmb == .Pressed {
+                mode.selected_ball = cast(u8)i
+                return
+            }
+        }
+    }
+}
+
+cm_ball_hovered :: proc(ball_position: Vec2, mouse_position: Vec2) -> bool {
+    return linalg.length2(mouse_position - ball_position) < BALL_RADIUS * BALL_RADIUS
+}
+
+
 cm_draw_balls :: proc(mode: ^ClassicMode, game: ^Game) {
-    for ball_body in mode.balls.body {
+    for ball_body, i in mode.balls.body {
+        tint_color := Color {
+            r = 255,
+            a = 128,
+        }
+        if mode.selected_ball == cast(u8)i {
+            tint_color = Color {
+                b = 128,
+                a = 128,
+            }
+        }
         render_commands_add(
             &game.render_commands,
             DrawTextureCommand {
@@ -145,7 +182,7 @@ cm_draw_balls :: proc(mode: ^ClassicMode, game: ^Game) {
                 texture_center = ball_body.position,
                 ignore_alpha = false,
                 tint = true,
-                tint_color = Color{r = 255, a = 128},
+                tint_color = tint_color,
             },
         )
     }
