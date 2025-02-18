@@ -32,12 +32,51 @@ PlayerInfo :: struct {
 }
 
 Item :: struct {}
-Cue :: struct {}
+CUE_TARGET_OFFSET :: 50
+PLAYER_CUES_BACKGROUND :: Vec2{-570, 0}
+OPPONENT_CUES_BACKGROUND :: Vec2{570, 0}
+Cue :: struct {
+    position: Vec2,
+    rotation: f32,
+    texture:  ^Texture,
+    width:    f32,
+    height:   f32,
+}
 
 cm_new :: proc(game: ^Game) -> ClassicMode {
     mode := ClassicMode{}
-    mode.player = {}
-    mode.opponent = {}
+    mode.player = {
+        cues = {
+            {
+                position = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(0),
+                texture = &game.cue_default_texture,
+                width = 10,
+                height = 512,
+            },
+            {
+                position = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(1),
+                texture = &game.cue_default_texture,
+                width = 10,
+                height = 512,
+            },
+        },
+    }
+    mode.opponent = {
+        cues = {
+            {
+                position = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(0),
+                texture = &game.cue_default_texture,
+                width = 10,
+                height = 512,
+            },
+            {
+                position = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(1),
+                texture = &game.cue_default_texture,
+                width = 10,
+                height = 512,
+            },
+        },
+    }
     mode.turn_owner = .Player
     mode.turn_state = .NotTaken
 
@@ -74,6 +113,8 @@ cm_position_balls :: proc(bodies: []PhysicsBody, tip_position: Vec2, direction: 
 }
 
 cm_update_and_draw :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
+    cm_cue_aim(&mode.player.cues[0], {}, game.input.mouse_world_positon)
+
     cm_draw_table(game)
     cm_draw_balls(mode, game)
     cm_draw_cues(mode, game)
@@ -117,10 +158,46 @@ cm_cue_storage_offset :: proc(cue_index: u8) -> Vec2 {
     return {}
 }
 
-cm_draw_cues :: proc(mode: ^ClassicMode, game: ^Game) {
-    PLAYER_CUES_BACKGROUND :: Vec2{-570, 0}
-    OPPONENT_CUES_BACKGROUND :: Vec2{570, 0}
+cm_cue_position_rotation :: proc(
+    cue: ^Cue,
+    target_position: Vec2,
+    mouse_position: Vec2,
+) -> (
+    Vec2,
+    f32,
+) {
+    to_mouse := linalg.normalize(mouse_position - target_position)
+    new_cue_position := target_position + to_mouse * (CUE_TARGET_OFFSET + cue.height / 2)
+    d_y := linalg.dot(to_mouse, Vec2{0, 1})
+    d_x := linalg.dot(to_mouse, Vec2{1, 0})
+    angle := math.acos(d_y)
+    if 0 < d_x {
+        angle = 2 * math.PI - angle
+    }
+    return new_cue_position, angle
+}
 
+cm_cue_aim :: proc(cue: ^Cue, target_position: Vec2, mouse_position: Vec2) {
+    p, r := cm_cue_position_rotation(cue, target_position, mouse_position)
+    cue.position = p
+    cue.rotation = r
+}
+
+cm_cue_draw :: proc(cue: ^Cue, game: ^Game) {
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureScaleRotate {
+            texture = &game.cue_default_texture,
+            texture_area = texture_full_area(&game.cue_default_texture),
+            texture_center = cue.position,
+            scale = 1,
+            rotation = cue.rotation,
+            ignore_alpha = false,
+        },
+    )
+}
+
+cm_draw_cues :: proc(mode: ^ClassicMode, game: ^Game) {
     render_commands_add(
         &game.render_commands,
         DrawTextureCommand {
@@ -131,25 +208,9 @@ cm_draw_cues :: proc(mode: ^ClassicMode, game: ^Game) {
         },
     )
 
-    render_commands_add(
-        &game.render_commands,
-        DrawTextureCommand {
-            texture = &game.cue_default_texture,
-            texture_area = texture_full_area(&game.cue_default_texture),
-            texture_center = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(0),
-            ignore_alpha = false,
-        },
-    )
-
-    render_commands_add(
-        &game.render_commands,
-        DrawTextureCommand {
-            texture = &game.cue_default_texture,
-            texture_area = texture_full_area(&game.cue_default_texture),
-            texture_center = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(1),
-            ignore_alpha = false,
-        },
-    )
+    for &cue in mode.player.cues {
+        cm_cue_draw(&cue, game)
+    }
 
     render_commands_add(
         &game.render_commands,
@@ -161,23 +222,7 @@ cm_draw_cues :: proc(mode: ^ClassicMode, game: ^Game) {
         },
     )
 
-    render_commands_add(
-        &game.render_commands,
-        DrawTextureCommand {
-            texture = &game.cue_default_texture,
-            texture_area = texture_full_area(&game.cue_default_texture),
-            texture_center = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(0),
-            ignore_alpha = false,
-        },
-    )
-
-    render_commands_add(
-        &game.render_commands,
-        DrawTextureCommand {
-            texture = &game.cue_default_texture,
-            texture_area = texture_full_area(&game.cue_default_texture),
-            texture_center = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(1),
-            ignore_alpha = false,
-        },
-    )
+    for &cue in mode.opponent.cues {
+        cm_cue_draw(&cue, game)
+    }
 }
