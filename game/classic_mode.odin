@@ -11,6 +11,7 @@ ClassicMode :: struct {
     turn_state:    TurnState,
     selected_ball: u8,
     balls:         #soa[PLAYER_BALL_COUNT * 2]Ball,
+    borders:       #soa[4]Border,
 }
 
 TurnOwner :: enum {
@@ -47,6 +48,18 @@ Cue :: struct {
     texture:          ^Texture,
     width:            f32,
     height:           f32,
+}
+
+
+BALL_RADIUS: f32 = 10
+Ball :: struct {
+    body:     PhysicsBody,
+    collider: ColliderCircle,
+}
+
+Border :: struct {
+    position: Vec2,
+    collider: ColliderRectangle,
 }
 
 cm_new :: proc(game: ^Game) -> ClassicMode {
@@ -94,12 +107,41 @@ cm_new :: proc(game: ^Game) -> ClassicMode {
     PLAYER_DIRECTION :: Vec2{-1, 0}
     OPPONENT_TIP_POSITION :: Vec2{200, 0}
     OPPONENT_DIRECTION :: Vec2{1, 0}
+
+    for &collider in mode.balls.collider {
+        collider = {BALL_RADIUS}
+    }
+    for &body in mode.balls.body {
+        body = PhysicsBody {
+            friction    = 0.5,
+            restitution = 0.8,
+            inv_mass    = 1.0,
+        }
+    }
+
     player_balls := mode.balls.body[:PLAYER_BALL_COUNT]
     opponent_balls := mode.balls.body[PLAYER_BALL_COUNT:]
-
     cm_position_balls(player_balls, PLAYER_TIP_POSITION, PLAYER_DIRECTION)
     cm_position_balls(opponent_balls, OPPONENT_TIP_POSITION, OPPONENT_DIRECTION)
+
     mode.selected_ball = BALL_NOT_SELECTED
+
+    mode.borders[0] = {
+        position = {0, -272},
+        collider = {{998, 50}},
+    }
+    mode.borders[1] = {
+        position = {0, 272},
+        collider = {{998, 50}},
+    }
+    mode.borders[2] = {
+        position = {-500, 0},
+        collider = {{50, 545}},
+    }
+    mode.borders[3] = {
+        position = {500, 0},
+        collider = {{50, 545}},
+    }
 
     return mode
 }
@@ -124,6 +166,15 @@ cm_position_balls :: proc(bodies: []PhysicsBody, tip_position: Vec2, direction: 
 }
 
 cm_update_and_draw :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
+    process_physics(
+        mode.balls.collider[:],
+        mode.balls.body[:],
+        mode.borders.collider[:],
+        mode.borders.position[:],
+        dt,
+    )
+
+    old_selection := mode.selected_ball
     cm_select_ball(mode, game)
     if mode.selected_ball != BALL_NOT_SELECTED {
         cm_cue_aim(
@@ -135,9 +186,17 @@ cm_update_and_draw :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
         cm_cue_store(&mode.player.cues[0], dt)
     }
 
+    if old_selection != mode.selected_ball {
+        if old_selection != BALL_NOT_SELECTED {
+            from_mouse := mode.balls[old_selection].body.position - game.input.mouse_world_positon
+            mode.balls[old_selection].body.velocity = from_mouse * 100 * dt
+        }
+    }
+
     cm_draw_table(game)
     cm_draw_balls(mode, game)
     cm_draw_cues(mode, game)
+    cm_draw_borders(mode, game)
 
     back := ui_draw_button(game, {500, 320}, "Back")
     if back && game.input.lmb == .Pressed do game_state_change(game, MAIN_MENU_STATE)
@@ -292,5 +351,21 @@ cm_draw_cues :: proc(mode: ^ClassicMode, game: ^Game) {
 
     for &cue in mode.opponent.cues {
         cm_cue_draw(&cue, game)
+    }
+}
+
+cm_draw_borders :: proc(mode: ^ClassicMode, game: ^Game) {
+    for border in mode.borders {
+        rectangle := Rectangle {
+            center = border.position,
+            size   = border.collider.size * game.camera.scale,
+        }
+        color := Color {
+            r = 38,
+            g = 249,
+            b = 74,
+            a = 255,
+        }
+        render_commands_add(&game.render_commands, DrawColorRectangleCommand{rectangle, color})
     }
 }

@@ -101,8 +101,6 @@ Game :: struct {
     hit:                        Soundtrack,
     audio:                      Audio,
     camera:                     Camera,
-    balls:                      [9]Ball,
-    borders:                    [4]Border,
     state:                      GlobalState,
     state_transition_animation: StateTransitionAnimation,
     mode:                       GameMode,
@@ -166,31 +164,6 @@ game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     half_surface_size := Vec2{cast(f32)surface_width / 2, cast(f32)surface_height / 2}
     game.camera = {half_surface_size, MAIN_MENU_STATE.position, 1.0}
 
-    ball_grid_left_top := Vec2{-11 * 2, -11 * 2}
-    for i in 0 ..< 3 {
-        for j in 0 ..< 3 {
-            game.balls[i * 3 + j] = ball_init(
-                ball_grid_left_top + {cast(f32)j * 22, cast(f32)i * 22},
-            )
-        }
-    }
-    game.borders[0] = {
-        position = {0, -272},
-        collider = {{998, 50}},
-    }
-    game.borders[1] = {
-        position = {0, 272},
-        collider = {{998, 50}},
-    }
-    game.borders[2] = {
-        position = {-500, 0},
-        collider = {{50, 545}},
-    }
-    game.borders[3] = {
-        position = {500, 0},
-        collider = {{50, 545}},
-    }
-
     game.state = {.MainMenu}
     game.state_transition_animation = {
         progress = 1.0,
@@ -251,50 +224,4 @@ game_state_animate :: proc(game: ^Game, dt: f32) {
         game.state_transition_animation.progress = 1.0
         game.state = game.state_transition_animation.new_state
     }
-}
-
-BALL_RADIUS: f32 = 10
-Ball :: struct {
-    body:     PhysicsBody,
-    collider: ColliderCircle,
-}
-
-ball_init :: proc(position: Vec2) -> Ball {
-    return {
-        body = {position = position, friction = 0.5, restitution = 0.8, inv_mass = 1.0},
-        collider = {10},
-    }
-}
-
-ball_draw :: proc(ball: ^Ball, game: ^Game) {
-    render_commands_add(
-        &game.render_commands,
-        DrawTextureCommand {
-            texture = &game.ball_texture,
-            texture_area = texture_full_area(&game.ball_texture),
-            texture_center = ball.body.position,
-            ignore_alpha = false,
-            tint = true,
-            tint_color = Color{r = 255, a = 128},
-        },
-    )
-}
-
-Border :: struct {
-    position: Vec2,
-    collider: ColliderRectangle,
-}
-
-border_draw :: proc(border: ^Border, game: ^Game) {
-    rectangle := Rectangle {
-        center = border.position,
-        size   = border.collider.size * game.camera.scale,
-    }
-    color := Color {
-        r = 38,
-        g = 249,
-        b = 74,
-        a = 255,
-    }
-    render_commands_add(&game.render_commands, DrawColorRectangleCommand{rectangle, color})
 }
