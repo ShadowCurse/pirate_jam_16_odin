@@ -44,6 +44,7 @@ OPPONENT_CUES_BACKGROUND :: Vec2{570, 0}
 Cue :: struct {
     storage_position: Vec2,
     position:         Vec2,
+    storage_rotation: f32,
     rotation:         f32,
     texture:          ^Texture,
     width:            f32,
@@ -87,6 +88,8 @@ cm_new :: proc(game: ^Game) -> ClassicMode {
             {
                 storage_position = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(0),
                 position = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(0),
+                storage_rotation = math.PI,
+                rotation = math.PI,
                 texture = &game.cue_default_texture,
                 width = 10,
                 height = 512,
@@ -94,6 +97,8 @@ cm_new :: proc(game: ^Game) -> ClassicMode {
             {
                 storage_position = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(1),
                 position = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(1),
+                storage_rotation = math.PI,
+                rotation = math.PI,
                 texture = &game.cue_default_texture,
                 width = 10,
                 height = 512,
@@ -292,11 +297,14 @@ cm_cue_store :: proc(cue: ^Cue, dt: f32) {
         cue.position += d / d_len * CUE_RETURN_TO_STORAGE_SPEED * dt
     }
 
-    rotation := cue.rotation
-    if rotation < 0.1 || math.PI * 2 - 0.1 < rotation {
-        cue.rotation = 0
+    rd := cue.rotation - cue.storage_rotation
+    if abs(rd) < 0.1 || cue.storage_rotation + 2 * math.PI - 0.1 < abs(rd) {
+        cue.rotation = cue.storage_rotation
     } else {
-        if rotation < math.PI {
+        if math.PI < rd {
+            rd = -2 * math.PI + rd
+        }
+        if 0 < rd {
             cue.rotation -= CUE_RETURN_TO_STORAGE_ANGLE_SPEED * dt
         } else {
             cue.rotation += CUE_RETURN_TO_STORAGE_ANGLE_SPEED * dt
