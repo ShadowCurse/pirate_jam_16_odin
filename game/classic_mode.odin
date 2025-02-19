@@ -34,15 +34,19 @@ PlayerInfo :: struct {
 }
 
 Item :: struct {}
+
 CUE_TARGET_OFFSET :: 50
+CUE_RETURN_TO_STORAGE_SPEED :: 500
+CUE_RETURN_TO_STORAGE_ANGLE_SPEED :: 3
 PLAYER_CUES_BACKGROUND :: Vec2{-570, 0}
 OPPONENT_CUES_BACKGROUND :: Vec2{570, 0}
 Cue :: struct {
-    position: Vec2,
-    rotation: f32,
-    texture:  ^Texture,
-    width:    f32,
-    height:   f32,
+    storage_position: Vec2,
+    position:         Vec2,
+    rotation:         f32,
+    texture:          ^Texture,
+    width:            f32,
+    height:           f32,
 }
 
 cm_new :: proc(game: ^Game) -> ClassicMode {
@@ -50,12 +54,14 @@ cm_new :: proc(game: ^Game) -> ClassicMode {
     mode.player = {
         cues = {
             {
+                storage_position = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(0),
                 position = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(0),
                 texture = &game.cue_default_texture,
                 width = 10,
                 height = 512,
             },
             {
+                storage_position = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(1),
                 position = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(1),
                 texture = &game.cue_default_texture,
                 width = 10,
@@ -66,12 +72,14 @@ cm_new :: proc(game: ^Game) -> ClassicMode {
     mode.opponent = {
         cues = {
             {
+                storage_position = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(0),
                 position = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(0),
                 texture = &game.cue_default_texture,
                 width = 10,
                 height = 512,
             },
             {
+                storage_position = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(1),
                 position = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(1),
                 texture = &game.cue_default_texture,
                 width = 10,
@@ -123,6 +131,8 @@ cm_update_and_draw :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
             mode.balls[mode.selected_ball].body.position,
             game.input.mouse_world_positon,
         )
+    } else {
+        cm_cue_store(&mode.player.cues[0], dt)
     }
 
     cm_draw_table(game)
@@ -195,7 +205,7 @@ cm_cue_storage_offset :: proc(cue_index: u8) -> Vec2 {
     return {}
 }
 
-cm_cue_position_rotation :: proc(
+cm_cue_aim_position_rotation :: proc(
     cue: ^Cue,
     target_position: Vec2,
     mouse_position: Vec2,
@@ -214,8 +224,25 @@ cm_cue_position_rotation :: proc(
     return new_cue_position, angle
 }
 
+cm_cue_store :: proc(cue: ^Cue, dt: f32) {
+    d := cue.storage_position - cue.position
+    d_len := linalg.length(d)
+    if d_len < 5 {
+        cue.position = cue.storage_position
+    } else {
+        cue.position += d / d_len * CUE_RETURN_TO_STORAGE_SPEED * dt
+    }
+
+    r_len := cue.rotation
+    if r_len < 0.1 {
+        cue.rotation = 0
+    } else {
+        cue.rotation -= CUE_RETURN_TO_STORAGE_ANGLE_SPEED * dt
+    }
+}
+
 cm_cue_aim :: proc(cue: ^Cue, target_position: Vec2, mouse_position: Vec2) {
-    p, r := cm_cue_position_rotation(cue, target_position, mouse_position)
+    p, r := cm_cue_aim_position_rotation(cue, target_position, mouse_position)
     cue.position = p
     cue.rotation = r
 }
