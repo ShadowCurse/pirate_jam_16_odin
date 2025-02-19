@@ -233,11 +233,15 @@ cm_cue_store :: proc(cue: ^Cue, dt: f32) {
         cue.position += d / d_len * CUE_RETURN_TO_STORAGE_SPEED * dt
     }
 
-    r_len := cue.rotation
-    if r_len < 0.1 {
+    rotation := cue.rotation
+    if rotation < 0.1 || math.PI * 2 - 0.1 < rotation {
         cue.rotation = 0
     } else {
-        cue.rotation -= CUE_RETURN_TO_STORAGE_ANGLE_SPEED * dt
+        if rotation < math.PI {
+            cue.rotation -= CUE_RETURN_TO_STORAGE_ANGLE_SPEED * dt
+        } else {
+            cue.rotation += CUE_RETURN_TO_STORAGE_ANGLE_SPEED * dt
+        }
     }
 }
 
