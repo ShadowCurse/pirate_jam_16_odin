@@ -34,6 +34,8 @@ PlayerInfo :: struct {
     cues:          [2]Cue,
 }
 
+PLAYER_ITEMS_BACKGROUND :: Vec2{0, 320}
+OPPONENT_ITEMS_BACKGROUND :: Vec2{0, -320}
 Item :: struct {}
 
 CUE_TARGET_OFFSET :: 50
@@ -202,6 +204,7 @@ cm_update_and_draw :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
     cm_draw_balls(mode, game)
     cm_draw_cues(mode, game)
     cm_draw_borders(mode, game)
+    cm_draw_items(mode, game)
 
     back := ui_draw_button(game, {500, 320}, "Back")
     if back && game.input.lmb == .Pressed do game_state_change(game, MAIN_MENU_STATE)
@@ -360,6 +363,28 @@ cm_draw_cues :: proc(mode: ^ClassicMode, game: ^Game) {
     for &cue in mode.opponent.cues {
         cm_cue_draw(&cue, game)
     }
+}
+
+cm_draw_items :: proc(mode: ^ClassicMode, game: ^Game) {
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.items_background_texture,
+            texture_area = texture_full_area(&game.items_background_texture),
+            texture_center = PLAYER_ITEMS_BACKGROUND,
+            ignore_alpha = true,
+        },
+    )
+
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.items_background_texture,
+            texture_area = texture_full_area(&game.items_background_texture),
+            texture_center = OPPONENT_ITEMS_BACKGROUND,
+            ignore_alpha = true,
+        },
+    )
 }
 
 cm_draw_borders :: proc(mode: ^ClassicMode, game: ^Game) {
