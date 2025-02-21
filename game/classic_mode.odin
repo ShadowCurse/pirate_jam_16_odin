@@ -34,9 +34,18 @@ PlayerInfo :: struct {
     cues:          [2]Cue,
 }
 
+ITEM_WIDTH :: 53
+ITEM_GAP :: 9
 PLAYER_ITEMS_BACKGROUND :: Vec2{0, 320}
 OPPONENT_ITEMS_BACKGROUND :: Vec2{0, -320}
-Item :: struct {}
+ItemTag :: enum {
+    Invalid,
+    BallSpiky,
+}
+Item :: struct {
+    tag:      ItemTag,
+    position: Vec2,
+}
 
 CUE_TARGET_OFFSET :: 50
 CUE_RETURN_TO_STORAGE_SPEED :: 500
@@ -107,6 +116,8 @@ cm_new :: proc(game: ^Game) -> ClassicMode {
             },
         },
     }
+    cm_init_items(mode.player.items[:], PLAYER_ITEMS_BACKGROUND)
+    cm_init_items(mode.opponent.items[:], OPPONENT_ITEMS_BACKGROUND)
     mode.turn_owner = .Player
     mode.turn_state = .NotTaken
 
@@ -151,6 +162,15 @@ cm_new :: proc(game: ^Game) -> ClassicMode {
     }
 
     return mode
+}
+
+cm_init_items :: proc(items: []Item, position: Vec2) {
+    d: f32 = (ITEM_WIDTH + ITEM_GAP) / 2
+    left_item := position - {d * 4, 0}
+    for &item, i in items {
+        item.tag = .BallSpiky
+        item.position = left_item + {d * 2, 0} * cast(f32)i
+    }
 }
 
 cm_position_balls :: proc(bodies: []PhysicsBody, tip_position: Vec2, direction: Vec2) {
@@ -376,6 +396,20 @@ cm_draw_items :: proc(mode: ^ClassicMode, game: ^Game) {
         },
     )
 
+    for item, i in mode.player.items {
+        if item.tag != .Invalid {
+            render_commands_add(
+                &game.render_commands,
+                DrawTextureCommand {
+                    texture = &game.item_ball_spiky_texture,
+                    texture_area = texture_full_area(&game.item_ball_spiky_texture),
+                    texture_center = item.position,
+                    ignore_alpha = false,
+                },
+            )
+        }
+    }
+
     render_commands_add(
         &game.render_commands,
         DrawTextureCommand {
@@ -385,6 +419,20 @@ cm_draw_items :: proc(mode: ^ClassicMode, game: ^Game) {
             ignore_alpha = true,
         },
     )
+
+    for item, i in mode.opponent.items {
+        if item.tag != .Invalid {
+            render_commands_add(
+                &game.render_commands,
+                DrawTextureCommand {
+                    texture = &game.item_ball_spiky_texture,
+                    texture_area = texture_full_area(&game.item_ball_spiky_texture),
+                    texture_center = item.position,
+                    ignore_alpha = false,
+                },
+            )
+        }
+    }
 }
 
 cm_draw_borders :: proc(mode: ^ClassicMode, game: ^Game) {

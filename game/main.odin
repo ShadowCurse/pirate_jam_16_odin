@@ -93,6 +93,7 @@ Game :: struct {
     cue_background_texture:     Texture,
     cue_default_texture:        Texture,
     items_background_texture:   Texture,
+    item_ball_spiky_texture:    Texture,
     ball_texture:               Texture,
     hand_texture:               Texture,
     button_normal_texture:      Texture,
@@ -156,6 +157,7 @@ game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     game.cue_background_texture = texture_load("./assets/cue_background.png")
     game.cue_default_texture = texture_load("./assets/cue_default.png")
     game.items_background_texture = texture_load("./assets/items_background.png")
+    game.item_ball_spiky_texture = texture_load("./assets/ball_spiky.png")
     game.ball_texture = texture_load("./assets/ball.png")
     game.hand_texture = texture_load("./assets/player_hand.png")
     game.button_normal_texture = texture_load("./assets/button.png")
