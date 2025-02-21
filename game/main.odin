@@ -73,6 +73,9 @@ runtime_run :: proc(
     if .InGame in game.state {
         game_in_game(game, dt)
     }
+    if .InGameShop in game.state {
+        game_in_game_shop(game, dt)
+    }
 
     render_commands_add(
         &game.render_commands,
@@ -94,6 +97,7 @@ Game :: struct {
     cue_default_texture:        Texture,
     items_background_texture:   Texture,
     item_ball_spiky_texture:    Texture,
+    shop_panel_texture:         Texture,
     ball_texture:               Texture,
     hand_texture:               Texture,
     button_normal_texture:      Texture,
@@ -137,6 +141,11 @@ GlobalStateInfo :: struct {
 
 MAIN_MENU_STATE :: GlobalStateInfo{{.MainMenu}, {-1280 / 2 - 1280, -720 / 2}}
 IN_GAME_STATE :: GlobalStateInfo{{.InGame}, {-1280 / 2, -720 / 2}}
+IN_GAME_SHOP_STATE :: GlobalStateInfo{{.InGame, .InGameShop}, {-1280 / 2, -720 / 2 + 720 - 80}}
+
+in_state_position :: proc(state: GlobalStateInfo, position: Vec2) -> Vec2 {
+    return state.position + position + {1280 / 2, 720 / 2}
+}
 
 States :: enum {
     MainMenu,
@@ -158,6 +167,7 @@ game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     game.cue_default_texture = texture_load("./assets/cue_default.png")
     game.items_background_texture = texture_load("./assets/items_background.png")
     game.item_ball_spiky_texture = texture_load("./assets/ball_spiky.png")
+    game.shop_panel_texture = texture_load("./assets/shop_panel.png")
     game.ball_texture = texture_load("./assets/ball.png")
     game.hand_texture = texture_load("./assets/player_hand.png")
     game.button_normal_texture = texture_load("./assets/button.png")
@@ -201,7 +211,14 @@ game_main_menu :: proc(game: ^Game) {
 game_in_game :: proc(game: ^Game, dt: f32) {
     switch &m in game.mode {
     case ClassicMode:
-        cm_update_and_draw(&m, game, dt)
+        cm_in_game(&m, game, dt)
+    }
+}
+
+game_in_game_shop :: proc(game: ^Game, dt: f32) {
+    switch &m in game.mode {
+    case ClassicMode:
+        cm_in_game_shop(&m, game, dt)
     }
 }
 

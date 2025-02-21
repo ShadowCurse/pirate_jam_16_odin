@@ -12,6 +12,7 @@ ClassicMode :: struct {
     selected_ball: u8,
     balls:         #soa[PLAYER_BALL_COUNT * 2]Ball,
     borders:       #soa[4]Border,
+    shop_items:    [3]Item,
 }
 
 TurnOwner :: enum {
@@ -172,6 +173,12 @@ cm_new :: proc(game: ^Game) -> ClassicMode {
         collider = {{50, 545}},
     }
 
+    mode.shop_items = {
+        {.BallSpiky, in_state_position(IN_GAME_SHOP_STATE, {-400, 0})},
+        {.BallSpiky, in_state_position(IN_GAME_SHOP_STATE, {})},
+        {.BallSpiky, in_state_position(IN_GAME_SHOP_STATE, {400, 0})},
+    }
+
     return mode
 }
 
@@ -203,7 +210,7 @@ cm_position_balls :: proc(bodies: []PhysicsBody, tip_position: Vec2, direction: 
     }
 }
 
-cm_update_and_draw :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
+cm_in_game :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
     process_physics(
         mode.balls.collider[:],
         mode.balls.body[:],
@@ -241,8 +248,82 @@ cm_update_and_draw :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
     cm_draw_borders(mode, game)
     cm_draw_items(mode, game)
 
+    shop := ui_draw_button(game, {320, 320}, "Show")
+    if shop && game.input.lmb == .Pressed {
+        if .InGameShop in game.state {
+            game_state_change(game, IN_GAME_STATE)
+        } else {
+            game_state_change(game, IN_GAME_SHOP_STATE)
+        }
+    }
+
     back := ui_draw_button(game, {500, 320}, "Back")
     if back && game.input.lmb == .Pressed do game_state_change(game, MAIN_MENU_STATE)
+}
+
+cm_in_game_shop :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
+    reroll := ui_draw_button(game, in_state_position(IN_GAME_SHOP_STATE, {0, 320}), "Reroll")
+
+    if reroll && game.input.lmb == .Pressed {
+        cm_shop_reroll(mode)
+    }
+
+    for &item in mode.shop_items {
+        if item.tag == .Invalid do continue
+
+        button_rect := Rectangle {
+            item.position,
+            {cast(f32)game.shop_panel_texture.width, cast(f32)game.shop_panel_texture.height},
+        }
+        hovered := rectangle_contains(&button_rect, game.input.mouse_world_positon)
+
+        tint := false
+        tint_color := Color {
+            a = 0,
+        }
+        if hovered {
+            tint = true
+            tint_color = Color {
+                r = 128,
+                a = 64,
+            }
+        }
+
+        if hovered && game.input.lmb == .Pressed {
+            if cm_player_info_add_item(&mode.player, item.tag) {
+                item.tag = .Invalid
+                continue
+            }
+        }
+
+        render_commands_add(
+            &game.render_commands,
+            DrawTextureCommand {
+                texture = &game.shop_panel_texture,
+                texture_area = texture_full_area(&game.shop_panel_texture),
+                texture_center = item.position,
+                ignore_alpha = false,
+                tint = tint,
+                tint_color = tint_color,
+            },
+        )
+
+        render_commands_add(
+            &game.render_commands,
+            DrawTextureCommand {
+                texture = &game.item_ball_spiky_texture,
+                texture_area = texture_full_area(&game.item_ball_spiky_texture),
+                texture_center = item.position,
+                ignore_alpha = false,
+            },
+        )
+    }
+}
+
+cm_shop_reroll :: proc(mode: ^ClassicMode) {
+    for &si in mode.shop_items {
+        si.tag = .BallSpiky
+    }
 }
 
 cm_draw_table :: proc(game: ^Game) {
@@ -412,17 +493,17 @@ cm_draw_items :: proc(mode: ^ClassicMode, game: ^Game) {
     )
 
     for item, i in mode.player.items {
-        if item.tag != .Invalid {
-            render_commands_add(
-                &game.render_commands,
-                DrawTextureCommand {
-                    texture = &game.item_ball_spiky_texture,
-                    texture_area = texture_full_area(&game.item_ball_spiky_texture),
-                    texture_center = item.position,
-                    ignore_alpha = false,
-                },
-            )
-        }
+        if item.tag == .Invalid do continue
+
+        render_commands_add(
+            &game.render_commands,
+            DrawTextureCommand {
+                texture = &game.item_ball_spiky_texture,
+                texture_area = texture_full_area(&game.item_ball_spiky_texture),
+                texture_center = item.position,
+                ignore_alpha = false,
+            },
+        )
     }
 
     render_commands_add(
