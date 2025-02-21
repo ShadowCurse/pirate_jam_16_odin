@@ -34,6 +34,17 @@ PlayerInfo :: struct {
     cues:          [2]Cue,
 }
 
+cm_player_info_add_item :: proc(player_info: ^PlayerInfo, tag: ItemTag) -> bool {
+    for &item in player_info.items {
+        if item.tag == .Invalid {
+            item.tag = tag
+            return true
+        }
+    }
+    log_warn("Trying to add more items than allowed")
+    return false
+}
+
 ITEM_WIDTH :: 53
 ITEM_GAP :: 9
 PLAYER_ITEMS_BACKGROUND :: Vec2{0, 320}
@@ -168,7 +179,7 @@ cm_init_items :: proc(items: []Item, position: Vec2) {
     d: f32 = (ITEM_WIDTH + ITEM_GAP) / 2
     left_item := position - {d * 4, 0}
     for &item, i in items {
-        item.tag = .BallSpiky
+        item.tag = .Invalid
         item.position = left_item + {d * 2, 0} * cast(f32)i
     }
 }
@@ -218,6 +229,10 @@ cm_update_and_draw :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
             from_mouse := mode.balls[old_selection].body.position - game.input.mouse_world_positon
             mode.balls[old_selection].body.velocity = from_mouse * 100 * dt
         }
+    }
+
+    if game.input.space == .Pressed {
+        cm_player_info_add_item(&mode.player, .BallSpiky)
     }
 
     cm_draw_table(game)
