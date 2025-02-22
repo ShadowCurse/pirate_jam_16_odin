@@ -78,6 +78,9 @@ Cue :: struct {
     texture:          ^Texture,
     width:            f32,
     height:           f32,
+    scope:            bool,
+    silencer:         bool,
+    rocket_booster:   bool,
 }
 
 
@@ -288,6 +291,7 @@ cm_in_game :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
     cm_draw_balls(mode, game)
     cm_draw_ball_info(mode, game)
     cm_draw_cues(mode, game)
+    cm_draw_cue_info(mode, game)
     // cm_draw_borders(mode, game)
     cm_draw_items(mode, game)
     cm_draw_player_infos(mode, game)
@@ -397,7 +401,6 @@ cm_select_ball :: proc(mode: ^ClassicMode, game: ^Game) {
 cm_ball_hovered :: proc(ball_position: Vec2, mouse_position: Vec2) -> bool {
     return linalg.length2(mouse_position - ball_position) < BALL_RADIUS * BALL_RADIUS
 }
-
 
 cm_draw_balls :: proc(mode: ^ClassicMode, game: ^Game) {
     for ball_body, i in mode.balls.body {
@@ -588,6 +591,51 @@ cm_draw_cues :: proc(mode: ^ClassicMode, game: ^Game) {
 
     for &cue in mode.opponent.cues {
         cm_cue_draw(&cue, game)
+    }
+}
+
+cm_cue_hovered :: proc(cue: ^Cue, mouse_positon: Vec2) -> bool {
+    rect := Rectangle{cue.storage_position, {cue.width, cue.height}}
+    return rectangle_contains(&rect, mouse_positon)
+}
+
+cm_draw_cue_info :: proc(mode: ^ClassicMode, game: ^Game) {
+    PANEL_OFFSET :: Vec2{160, 0}
+    PANEL_TEXT_OFFSET :: Vec2{-120, -35}
+
+    draw_info :: proc(cue: ^Cue, game: ^Game, panel_offset: Vec2, text_offset: Vec2) {
+        render_commands_add(
+            &game.render_commands,
+            DrawTextureCommand {
+                texture = &game.cue_info_panel_texture,
+                texture_area = texture_full_area(&game.cue_info_panel_texture),
+                texture_center = cue.storage_position + panel_offset,
+                ignore_alpha = false,
+            },
+        )
+
+        render_commands_add(
+            &game.render_commands,
+            &game.font,
+            cue.storage_position + panel_offset + text_offset,
+            "Scope: %t\nSilencer: %t\nRocket booster: %t",
+            cue.scope,
+            cue.silencer,
+            cue.rocket_booster,
+            center = false,
+        )
+    }
+
+    for &cue in mode.player.cues {
+        if cm_cue_hovered(&cue, game.input.mouse_world_positon) {
+            draw_info(&cue, game, PANEL_OFFSET, PANEL_TEXT_OFFSET)
+        }
+    }
+
+    for &cue in mode.opponent.cues {
+        if cm_cue_hovered(&cue, game.input.mouse_world_positon) {
+            draw_info(&cue, game, -PANEL_OFFSET, PANEL_TEXT_OFFSET)
+        }
     }
 }
 

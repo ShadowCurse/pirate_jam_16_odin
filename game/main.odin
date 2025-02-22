@@ -94,6 +94,7 @@ Game :: struct {
     render_commands:            RenderCommands,
     table_texture:              Texture,
     cue_background_texture:     Texture,
+    cue_info_panel_texture:     Texture,
     cue_default_texture:        Texture,
     items_background_texture:   Texture,
     item_ball_spiky_texture:    Texture,
@@ -168,8 +169,11 @@ GameMode :: union {
 game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     game.render_commands.commands_n = 0
     game.table_texture = texture_load("./assets/table.png")
+
     game.cue_background_texture = texture_load("./assets/cue_background.png")
+    game.cue_info_panel_texture = texture_load("./assets/cue_info_panel.png")
     game.cue_default_texture = texture_load("./assets/cue_default.png")
+
     game.items_background_texture = texture_load("./assets/items_background.png")
     game.item_ball_spiky_texture = texture_load("./assets/ball_spiky.png")
     game.shop_panel_texture = texture_load("./assets/shop_panel.png")
