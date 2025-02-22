@@ -98,6 +98,10 @@ Game :: struct {
     items_background_texture:   Texture,
     item_ball_spiky_texture:    Texture,
     shop_panel_texture:         Texture,
+    blood_icon_texture:         Texture,
+    souls_icon_texture:         Texture,
+    under_hp_bar_texture:       Texture,
+    under_hp_bar_turn_texture:  Texture,
     ball_texture:               Texture,
     hand_texture:               Texture,
     button_normal_texture:      Texture,
@@ -168,6 +172,12 @@ game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     game.items_background_texture = texture_load("./assets/items_background.png")
     game.item_ball_spiky_texture = texture_load("./assets/ball_spiky.png")
     game.shop_panel_texture = texture_load("./assets/shop_panel.png")
+
+    game.blood_icon_texture = texture_load("./assets/blood.png")
+    game.souls_icon_texture = texture_load("./assets/souls.png")
+    game.under_hp_bar_texture = texture_load("./assets/under_hp_bar.png")
+    game.under_hp_bar_turn_texture = texture_load("./assets/under_hp_bar_turn.png")
+
     game.ball_texture = texture_load("./assets/ball.png")
     game.hand_texture = texture_load("./assets/player_hand.png")
     game.button_normal_texture = texture_load("./assets/button.png")

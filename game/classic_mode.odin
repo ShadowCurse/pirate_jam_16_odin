@@ -89,7 +89,9 @@ Border :: struct {
 cm_new :: proc(game: ^Game) -> ClassicMode {
     mode := ClassicMode{}
     mode.player = {
-        cues = {
+        hp    = 11,
+        souls = 69,
+        cues  = {
             {
                 storage_position = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(0),
                 position = PLAYER_CUES_BACKGROUND + cm_cue_storage_offset(0),
@@ -107,7 +109,9 @@ cm_new :: proc(game: ^Game) -> ClassicMode {
         },
     }
     mode.opponent = {
-        cues = {
+        hp    = 22,
+        souls = 322,
+        cues  = {
             {
                 storage_position = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(0),
                 position = OPPONENT_CUES_BACKGROUND + cm_cue_storage_offset(0),
@@ -235,6 +239,7 @@ cm_in_game :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
         if old_selection != BALL_NOT_SELECTED {
             from_mouse := mode.balls[old_selection].body.position - game.input.mouse_world_positon
             mode.balls[old_selection].body.velocity = from_mouse * 100 * dt
+            mode.turn_owner = cast(TurnOwner)!cast(bool)mode.turn_owner
         }
     }
 
@@ -247,6 +252,7 @@ cm_in_game :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
     cm_draw_cues(mode, game)
     cm_draw_borders(mode, game)
     cm_draw_items(mode, game)
+    cm_draw_player_infos(mode, game)
 
     shop := ui_draw_button(game, {320, 320}, "Show")
     if shop && game.input.lmb == .Pressed {
@@ -529,6 +535,61 @@ cm_draw_items :: proc(mode: ^ClassicMode, game: ^Game) {
             )
         }
     }
+}
+
+cm_draw_player_info :: proc(info: ^PlayerInfo, position: Vec2, turn_owner: bool, game: ^Game) {
+    BLOOD_OFFSET :: Vec2{-50, 0}
+    SOULS_OFFSET :: Vec2{50, 0}
+    UNDER_HP_PANEL_OFFSET :: Vec2{0, 25}
+
+    render_commands_add(
+        &game.render_commands,
+        &game.font,
+        position,
+        "  %d  %d",
+        info.hp,
+        info.souls,
+        center = true,
+    )
+
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.blood_icon_texture,
+            texture_area = texture_full_area(&game.blood_icon_texture),
+            texture_center = position + BLOOD_OFFSET,
+            ignore_alpha = true,
+        },
+    )
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.souls_icon_texture,
+            texture_area = texture_full_area(&game.souls_icon_texture),
+            texture_center = position + SOULS_OFFSET,
+            ignore_alpha = true,
+        },
+    )
+
+    panel_texture := &game.under_hp_bar_texture
+    if turn_owner do panel_texture = &game.under_hp_bar_turn_texture
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = panel_texture,
+            texture_area = texture_full_area(panel_texture),
+            texture_center = position + UNDER_HP_PANEL_OFFSET,
+            ignore_alpha = true,
+        },
+    )
+}
+
+cm_draw_player_infos :: proc(mode: ^ClassicMode, game: ^Game) {
+    PLAYER_INFO_POSITION :: Vec2{-520, 325}
+    OPPONENT_INFO_POSITION :: Vec2{520, -310}
+
+    cm_draw_player_info(&mode.player, PLAYER_INFO_POSITION, mode.turn_owner == .Player, game)
+    cm_draw_player_info(&mode.opponent, OPPONENT_INFO_POSITION, mode.turn_owner == .Opponent, game)
 }
 
 cm_draw_borders :: proc(mode: ^ClassicMode, game: ^Game) {
