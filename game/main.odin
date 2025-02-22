@@ -103,6 +103,7 @@ Game :: struct {
     under_hp_bar_texture:       Texture,
     under_hp_bar_turn_texture:  Texture,
     ball_texture:               Texture,
+    ball_info_panel_texture:    Texture,
     hand_texture:               Texture,
     button_normal_texture:      Texture,
     button_hover_texture:       Texture,
@@ -179,6 +180,8 @@ game_init :: proc(game: ^Game, surface_width: u16, surface_height: u16) {
     game.under_hp_bar_turn_texture = texture_load("./assets/under_hp_bar_turn.png")
 
     game.ball_texture = texture_load("./assets/ball.png")
+    game.ball_info_panel_texture = texture_load("./assets/ball_info_panel.png")
+
     game.hand_texture = texture_load("./assets/player_hand.png")
     game.button_normal_texture = texture_load("./assets/button.png")
     game.button_hover_texture = texture_load("./assets/button_hover.png")

@@ -85,6 +85,11 @@ BALL_RADIUS: f32 = 10
 Ball :: struct {
     body:     PhysicsBody,
     collider: ColliderCircle,
+    hp:       f32,
+    max_hp:   f32,
+    damage:   f32,
+    heal:     f32,
+    armor:    f32,
 }
 
 Border :: struct {
@@ -281,8 +286,9 @@ cm_in_game :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
 
     cm_draw_table(game)
     cm_draw_balls(mode, game)
+    cm_draw_ball_info(mode, game)
     cm_draw_cues(mode, game)
-    cm_draw_borders(mode, game)
+    // cm_draw_borders(mode, game)
     cm_draw_items(mode, game)
     cm_draw_player_infos(mode, game)
 
@@ -416,6 +422,42 @@ cm_draw_balls :: proc(mode: ^ClassicMode, game: ^Game) {
                 tint_color = tint_color,
             },
         )
+    }
+}
+
+cm_draw_ball_info :: proc(mode: ^ClassicMode, game: ^Game) {
+    PANEL_OFFSET :: Vec2{0, -180}
+    PANEL_TEXT_OFFSET :: Vec2{-120, -100}
+
+    for ball_body, i in mode.balls.body {
+        if cm_ball_hovered(ball_body.position, game.input.mouse_world_positon) {
+            offset := PANEL_OFFSET
+            if ball_body.position.y < 0 do offset = -offset
+
+            render_commands_add(
+                &game.render_commands,
+                DrawTextureCommand {
+                    texture = &game.ball_info_panel_texture,
+                    texture_area = texture_full_area(&game.ball_info_panel_texture),
+                    texture_center = ball_body.position + offset,
+                    ignore_alpha = false,
+                },
+            )
+
+            render_commands_add(
+                &game.render_commands,
+                &game.font,
+                ball_body.position + offset + PANEL_TEXT_OFFSET,
+                "HP: %.01f\nDAMAGE: %.01f\nHEAL: %.01f\nARMOR: %.01f",
+                mode.balls[i].hp,
+                mode.balls[i].damage,
+                mode.balls[i].heal,
+                mode.balls[i].armor,
+                center = false,
+            )
+
+            return
+        }
     }
 }
 
