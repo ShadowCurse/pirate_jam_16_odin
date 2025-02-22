@@ -126,7 +126,7 @@ render_commands_add_text :: proc(
             )
             line_start_index = i + 1
             global_offset.x = 0
-            global_offset.y = font.line_gap * font.scale
+            global_offset.y += font.line_gap * font.scale
             continue
         }
 
