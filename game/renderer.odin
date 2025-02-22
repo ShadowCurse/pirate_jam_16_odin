@@ -303,12 +303,12 @@ height :: proc(aabb: ^AABBu32) -> u32 {
 texture_rectangle_intersection :: proc(texture: ^Texture, rectangle: ^Rectangle) -> AABBu32 {
     aabb: AABBu32 = {
         min = {
-            cast(u32)clamp(left(rectangle), 0, cast(f32)texture.width),
-            cast(u32)clamp(top(rectangle), 0, cast(f32)texture.height),
+            cast(u32)clamp(left(rectangle), 0, cast(f32)texture.width - 1),
+            cast(u32)clamp(top(rectangle), 0, cast(f32)texture.height - 1),
         },
         max = {
-            cast(u32)clamp(right(rectangle), 0, cast(f32)texture.width),
-            cast(u32)clamp(bottom(rectangle), 0, cast(f32)texture.height),
+            cast(u32)clamp(right(rectangle), 0, cast(f32)texture.width - 1),
+            cast(u32)clamp(bottom(rectangle), 0, cast(f32)texture.height - 1),
         },
     }
     assert(
