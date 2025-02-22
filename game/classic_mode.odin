@@ -5,14 +5,17 @@ import "core:math/linalg"
 
 BALL_NOT_SELECTED :: 255
 ClassicMode :: struct {
-    player:        PlayerInfo,
-    opponent:      PlayerInfo,
-    turn_owner:    TurnOwner,
-    turn_state:    TurnState,
-    selected_ball: u8,
-    balls:         #soa[PLAYER_BALL_COUNT * 2]Ball,
-    borders:       #soa[4]Border,
-    shop_items:    [3]Item,
+    player:                    PlayerInfo,
+    opponent:                  PlayerInfo,
+    turn_owner:                TurnOwner,
+    turn_state:                TurnState,
+    selected_ball:             u8,
+    balls:                     #soa[PLAYER_BALL_COUNT * 2]Ball,
+    borders:                   #soa[4]Border,
+    shop_items:                [3]Item,
+    cue_adjust_position:       Vec2,
+    cue_adjust_mouse_position: Vec2,
+    cue_hit_animation:         SmoothStepAnimation,
 }
 
 TurnOwner :: enum {
@@ -22,6 +25,9 @@ TurnOwner :: enum {
 
 TurnState :: enum {
     NotTaken,
+    Aim,
+    StrengthAdjust,
+    Hit,
     Taken,
 }
 
@@ -215,36 +221,62 @@ cm_position_balls :: proc(bodies: []PhysicsBody, tip_position: Vec2, direction: 
 }
 
 cm_in_game :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
-    process_physics(
-        mode.balls.collider[:],
-        mode.balls.body[:],
-        mode.borders.collider[:],
-        mode.borders.position[:],
-        dt,
-    )
-
-    old_selection := mode.selected_ball
-    cm_select_ball(mode, game)
-    if mode.selected_ball != BALL_NOT_SELECTED {
+    switch mode.turn_state {
+    case .NotTaken:
+        cm_select_ball(mode, game)
+        if mode.selected_ball != BALL_NOT_SELECTED do mode.turn_state = .Aim
+    case .Aim:
         cm_cue_aim(
             &mode.player.cues[0],
             mode.balls[mode.selected_ball].body.position,
             game.input.mouse_world_positon,
         )
-    } else {
-        cm_cue_store(&mode.player.cues[0], dt)
-    }
-
-    if old_selection != mode.selected_ball {
-        if old_selection != BALL_NOT_SELECTED {
-            from_mouse := mode.balls[old_selection].body.position - game.input.mouse_world_positon
-            mode.balls[old_selection].body.velocity = from_mouse * 100 * dt
-            mode.turn_owner = cast(TurnOwner)!cast(bool)mode.turn_owner
+        if game.input.lmb == .Pressed {
+            mode.turn_state = .StrengthAdjust
+            mode.cue_adjust_position = mode.player.cues[0].position
+            mode.cue_adjust_mouse_position = game.input.mouse_world_positon
         }
-    }
-
-    if game.input.space == .Pressed {
-        cm_player_info_add_item(&mode.player, .BallSpiky)
+    case .StrengthAdjust:
+        cm_cue_adjust(
+            &mode.player.cues[0],
+            mode.cue_adjust_position,
+            mode.balls[mode.selected_ball].body.position,
+            mode.cue_adjust_mouse_position,
+            game.input.mouse_world_positon,
+        )
+        if game.input.lmb == .Released {
+            cm_cue_start_hit(
+                &mode.player.cues[0],
+                &mode.cue_hit_animation,
+                mode.balls[mode.selected_ball].body.position,
+            )
+            mode.turn_state = .Hit
+        }
+    case .Hit:
+        if cm_cue_hit(&mode.player.cues[0], &mode.cue_hit_animation, dt) {
+            from_mouse :=
+                mode.balls[mode.selected_ball].body.position - game.input.mouse_world_positon
+            mode.balls[mode.selected_ball].body.velocity = from_mouse * 100 * dt
+            mode.selected_ball = BALL_NOT_SELECTED
+            mode.turn_state = .Taken
+        }
+    case .Taken:
+        cm_cue_store(&mode.player.cues[0], dt)
+        process_physics(
+            mode.balls.collider[:],
+            mode.balls.body[:],
+            mode.borders.collider[:],
+            mode.borders.position[:],
+            dt,
+        )
+        all_stationary := true
+        for &body in mode.balls.body {
+            if body.velocity != {} do all_stationary = false
+        }
+        if all_stationary {
+            mode.turn_owner = cast(TurnOwner)!cast(bool)mode.turn_owner
+            mode.turn_state = .NotTaken
+        }
     }
 
     cm_draw_table(game)
@@ -441,6 +473,36 @@ cm_cue_aim :: proc(cue: ^Cue, target_position: Vec2, mouse_position: Vec2) {
     p, r := cm_cue_aim_position_rotation(cue, target_position, mouse_position)
     cue.position = p
     cue.rotation = r
+}
+
+cm_cue_adjust :: proc(
+    cue: ^Cue,
+    cue_default_position: Vec2,
+    target_position: Vec2,
+    mouse_default_position: Vec2,
+    mouse_position: Vec2,
+) {
+    to_cue := linalg.normalize(cue.position - target_position)
+    to_mp := mouse_position - mouse_default_position
+    p := max(0, linalg.dot(to_mp, to_cue))
+    cue.position = cue_default_position + to_cue * p
+}
+
+cm_cue_start_hit :: proc(
+    cue: ^Cue,
+    cue_hit_animation: ^SmoothStepAnimation,
+    target_position: Vec2,
+) {
+    end_position, _ := cm_cue_aim_position_rotation(cue, target_position, cue.position)
+    cue_hit_animation^ = {
+        start_position = cue.position,
+        end_position   = end_position,
+        duration       = 1,
+    }
+}
+
+cm_cue_hit :: proc(cue: ^Cue, cue_hit_animation: ^SmoothStepAnimation, dt: f32) -> bool {
+    return ssa_update(cue_hit_animation, &cue.position, dt)
 }
 
 cm_cue_draw :: proc(cue: ^Cue, game: ^Game) {
