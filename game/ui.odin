@@ -71,8 +71,10 @@ ui_draw_dashed_line :: proc(line: ^UiDashedLine, game: ^Game, dt: f32) {
     d := linalg.dot(delta_normalized, Vec2{0, 1})
     rotation: f32 = ---
     if (c < 0.0) {
+        rotation = math.acos(d)
+    } else {
         rotation = -math.acos(d)
-    } else {rotation = math.acos(d)}
+    }
     num_segments := cast(u32)math.floor(actual_len / TOTAL_SEGMENT_LEN)
     first_segment_len := animation_offset - SEGMENT_GAP
     last_segment_len := actual_len - cast(f32)num_segments * TOTAL_SEGMENT_LEN - ARROW_DELTA
@@ -82,7 +84,11 @@ ui_draw_dashed_line :: proc(line: ^UiDashedLine, game: ^Game, dt: f32) {
 
         render_commands_add(
             &game.render_commands,
-            DrawColorRectangleCommand{rectangle = {segment_position, size}, color = COLOR},
+            DrawColorRectangleRotateCommand {
+                rectangle = {segment_position, size},
+                color = COLOR,
+                rotation = rotation,
+            },
         )
 
         segment_position = segment_position + delta_normalized * TOTAL_SEGMENT_LEN
@@ -94,7 +100,11 @@ ui_draw_dashed_line :: proc(line: ^UiDashedLine, game: ^Game, dt: f32) {
 
         render_commands_add(
             &game.render_commands,
-            DrawColorRectangleCommand{rectangle = {first_segment_positon, size}, color = COLOR},
+            DrawColorRectangleRotateCommand {
+                rectangle = {first_segment_positon, size},
+                color = COLOR,
+                rotation = rotation,
+            },
         )
     }
 
@@ -106,7 +116,11 @@ ui_draw_dashed_line :: proc(line: ^UiDashedLine, game: ^Game, dt: f32) {
 
         render_commands_add(
             &game.render_commands,
-            DrawColorRectangleCommand{rectangle = {segment_position, size}, color = COLOR},
+            DrawColorRectangleRotateCommand {
+                rectangle = {segment_position, size},
+                color = COLOR,
+                rotation = rotation,
+            },
         )
     }
 
@@ -118,9 +132,10 @@ ui_draw_dashed_line :: proc(line: ^UiDashedLine, game: ^Game, dt: f32) {
 
         render_commands_add(
             &game.render_commands,
-            DrawColorRectangleCommand {
+            DrawColorRectangleRotateCommand {
                 rectangle = {arrow_left_segment_positon, size},
                 color = COLOR,
+                rotation = rotation + ARROW_ANGLE,
             },
         )
 
@@ -133,9 +148,10 @@ ui_draw_dashed_line :: proc(line: ^UiDashedLine, game: ^Game, dt: f32) {
 
         render_commands_add(
             &game.render_commands,
-            DrawColorRectangleCommand {
+            DrawColorRectangleRotateCommand {
                 rectangle = {arrow_right_segment_positon, size},
                 color = COLOR,
+                rotation = rotation + ARROW_ANGLE,
             },
         )
     }

@@ -90,6 +90,12 @@ DrawColorRectangleCommand :: struct {
     color:     Color,
 }
 
+DrawColorRectangleRotateCommand :: struct {
+    rectangle: Rectangle,
+    color:     Color,
+    rotation:  f32,
+}
+
 DrawTextureCommand :: struct {
     texture:        ^Texture,
     texture_area:   TextureArea,
@@ -111,6 +117,7 @@ DrawTextureScaleRotate :: struct {
 
 RenderCommand :: union #no_nil {
     DrawColorRectangleCommand,
+    DrawColorRectangleRotateCommand,
     DrawTextureCommand,
     DrawTextureScaleRotate,
 }
@@ -125,6 +132,20 @@ RenderCommands :: struct {
 render_commands_add_color_rect :: proc(
     render_commands: ^RenderCommands,
     command: DrawColorRectangleCommand,
+    in_world_space := true,
+) {
+    if render_commands.commands_n == RENDER_COMMANDS_MAX {
+        log_err("Trying to add more render commands than capacity")
+        return
+    }
+
+    render_commands.commands[render_commands.commands_n] = command
+    render_commands.in_world_space[render_commands.commands_n] = in_world_space
+    render_commands.commands_n += 1
+}
+render_commands_add_color_rect_rotate :: proc(
+    render_commands: ^RenderCommands,
+    command: DrawColorRectangleRotateCommand,
     in_world_space := true,
 ) {
     if render_commands.commands_n == RENDER_COMMANDS_MAX {
@@ -166,6 +187,7 @@ render_commands_add_texture_scale_rotate :: proc(
 }
 render_commands_add :: proc {
     render_commands_add_color_rect,
+    render_commands_add_color_rect_rotate,
     render_commands_add_texture,
     render_commands_add_texture_scale_rotate,
     render_commands_add_text,
@@ -184,6 +206,11 @@ render_commands_render :: proc(
                 c.rectangle.center = camera_to_screen(camera, c.rectangle.center)
             }
             draw_rectangle(surface, &c.rectangle, c.color)
+        case DrawColorRectangleRotateCommand:
+            if to_screen_space {
+                c.rectangle.center = camera_to_screen(camera, c.rectangle.center)
+            }
+            draw_rectangle_rotate(surface, &c.rectangle, c.color, c.rotation)
         case DrawTextureCommand:
             if to_screen_space {
                 c.texture_center = camera_to_screen(camera, c.texture_center)
@@ -351,6 +378,67 @@ draw_rectangle :: proc(surface: ^Texture, rectangle: ^Rectangle, color: Color) {
     for _ in 0 ..< height {
         for &c in surface_colors[surface_data_start:][:width] {
             c = color
+        }
+        surface_data_start += cast(u32)surface.width
+    }
+}
+
+draw_rectangle_rotate :: proc(
+    surface: ^Texture,
+    rectangle: ^Rectangle,
+    color: Color,
+    rotation: f32,
+) {
+
+    cos, sin := linalg.cos(rotation), linalg.sin(rotation)
+    x_axis := Vec2{cos, sin}
+    y_axis := Vec2{-sin, cos}
+
+    half_rect_size := rectangle.size / 2
+    // a - b
+    // |   |
+    // c - d
+    a := rectangle.center - x_axis * half_rect_size.x - y_axis * half_rect_size.y
+    b := rectangle.center + x_axis * half_rect_size.x - y_axis * half_rect_size.y
+    c := rectangle.center - x_axis * half_rect_size.x + y_axis * half_rect_size.y
+    d := rectangle.center + x_axis * half_rect_size.x + y_axis * half_rect_size.y
+    rectangle_on_the_surface := Rectangle {
+        center = rectangle.center,
+        size   = {
+            max(a.x, b.x, c.x, d.x) - min(a.x, b.x, c.x, d.x),
+            max(a.y, b.y, c.y, d.y) - min(a.y, b.y, c.y, d.y),
+        },
+    }
+    intersection := texture_rectangle_intersection(surface, &rectangle_on_the_surface)
+
+    width := width(&intersection)
+    height := height(&intersection)
+    if width == 0 || height == 0 do return
+
+    surface_colors := texture_as_colors(surface)
+    surface_data_start := intersection.min.x + intersection.min.y * cast(u32)surface.width
+
+    ab_perp := perp(b - a)
+    bd_perp := perp(d - b)
+    dc_perp := perp(c - d)
+    ca_perp := perp(a - c)
+
+    for y in 0 ..< height {
+        for x in 0 ..< width {
+            p := vec2_cast_f32(intersection.min + {x, y})
+
+            ap := p - a
+            bp := p - b
+            dp := p - d
+            cp := p - c
+
+            if 0 < linalg.dot(ab_perp, ap) &&
+               0 < linalg.dot(bd_perp, bp) &&
+               0 < linalg.dot(dc_perp, dp) &&
+               0 < linalg.dot(ca_perp, cp) {
+                surface_color := &surface_colors[surface_data_start:][x]
+                surface_color^ = color
+            }
         }
         surface_data_start += cast(u32)surface.width
     }
