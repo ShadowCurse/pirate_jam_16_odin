@@ -16,6 +16,7 @@ ClassicMode :: struct {
     cue_adjust_position:       Vec2,
     cue_adjust_mouse_position: Vec2,
     cue_hit_animation:         SmoothStepAnimation,
+    item_use_dshed_line:       UiDashedLine,
 }
 
 TurnOwner :: enum {
@@ -52,7 +53,7 @@ cm_player_info_add_item :: proc(player_info: ^PlayerInfo, tag: ItemTag) -> bool 
     return false
 }
 
-ITEM_WIDTH :: 53
+ITEM_SIZE :: 53
 ITEM_GAP :: 9
 PLAYER_ITEMS_BACKGROUND :: Vec2{0, 320}
 OPPONENT_ITEMS_BACKGROUND :: Vec2{0, -320}
@@ -201,7 +202,7 @@ cm_new :: proc(game: ^Game) -> ClassicMode {
 }
 
 cm_init_items :: proc(items: []Item, position: Vec2) {
-    d: f32 = (ITEM_WIDTH + ITEM_GAP) / 2
+    d: f32 = (ITEM_SIZE + ITEM_GAP) / 2
     left_item := position - {d * 4, 0}
     for &item, i in items {
         item.tag = .Invalid
@@ -318,53 +319,13 @@ cm_in_game_shop :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
 
     for &item in mode.shop_items {
         if item.tag == .Invalid do continue
-
-        button_rect := Rectangle {
-            item.position,
-            {cast(f32)game.shop_panel_texture.width, cast(f32)game.shop_panel_texture.height},
-        }
-        hovered := rectangle_contains(&button_rect, game.input.mouse_world_positon)
-
-        tint := false
-        tint_color := Color {
-            a = 0,
-        }
-        if hovered {
-            tint = true
-            tint_color = Color {
-                r = 128,
-                a = 64,
-            }
-        }
-
+        hovered := cm_draw_item_info_panel(&item, game, {}, true, true)
         if hovered && game.input.lmb == .Pressed {
             if cm_player_info_add_item(&mode.player, item.tag) {
                 item.tag = .Invalid
                 continue
             }
         }
-
-        render_commands_add(
-            &game.render_commands,
-            DrawTextureCommand {
-                texture = &game.shop_panel_texture,
-                texture_area = texture_full_area(&game.shop_panel_texture),
-                texture_center = item.position,
-                ignore_alpha = false,
-                tint = tint,
-                tint_color = tint_color,
-            },
-        )
-
-        render_commands_add(
-            &game.render_commands,
-            DrawTextureCommand {
-                texture = &game.item_ball_spiky_texture,
-                texture_area = texture_full_area(&game.item_ball_spiky_texture),
-                texture_center = item.position,
-                ignore_alpha = false,
-            },
-        )
     }
 }
 
@@ -639,7 +600,24 @@ cm_draw_cue_info :: proc(mode: ^ClassicMode, game: ^Game) {
     }
 }
 
+cm_item_hovered :: proc(item_position: Vec2, mouse_position: Vec2) -> bool {
+    half_size: f32 = ITEM_SIZE / 2
+    left := item_position.x - half_size
+    right := item_position.x + half_size
+    top := item_position.y - half_size
+    bot := item_position.y + half_size
+
+    return(
+        left <= mouse_position.x &&
+        mouse_position.x <= right &&
+        top <= mouse_position.y &&
+        mouse_position.y <= bot \
+    )
+}
+
 cm_draw_items :: proc(mode: ^ClassicMode, game: ^Game) {
+    INFO_PANEL_OFFSET := Vec2{0, -310}
+
     render_commands_add(
         &game.render_commands,
         DrawTextureCommand {
@@ -650,7 +628,7 @@ cm_draw_items :: proc(mode: ^ClassicMode, game: ^Game) {
         },
     )
 
-    for item, i in mode.player.items {
+    for &item, i in mode.player.items {
         if item.tag == .Invalid do continue
 
         render_commands_add(
@@ -662,6 +640,14 @@ cm_draw_items :: proc(mode: ^ClassicMode, game: ^Game) {
                 ignore_alpha = false,
             },
         )
+
+        if cm_item_hovered(item.position, game.input.mouse_world_positon) {
+            if .InGameShop in game.state {
+                cm_draw_item_info_panel(&item, game, -INFO_PANEL_OFFSET, false, false)
+            } else {
+                cm_draw_item_info_panel(&item, game, INFO_PANEL_OFFSET, false, false)
+            }
+        }
     }
 
     render_commands_add(
@@ -674,19 +660,76 @@ cm_draw_items :: proc(mode: ^ClassicMode, game: ^Game) {
         },
     )
 
-    for item, i in mode.opponent.items {
-        if item.tag != .Invalid {
-            render_commands_add(
-                &game.render_commands,
-                DrawTextureCommand {
-                    texture = &game.item_ball_spiky_texture,
-                    texture_area = texture_full_area(&game.item_ball_spiky_texture),
-                    texture_center = item.position,
-                    ignore_alpha = false,
-                },
-            )
+    for &item, i in mode.opponent.items {
+        if item.tag == .Invalid do continue
+
+        render_commands_add(
+            &game.render_commands,
+            DrawTextureCommand {
+                texture = &game.item_ball_spiky_texture,
+                texture_area = texture_full_area(&game.item_ball_spiky_texture),
+                texture_center = item.position,
+                ignore_alpha = false,
+            },
+        )
+        if cm_item_hovered(item.position, game.input.mouse_world_positon) {
+            cm_draw_item_info_panel(&item, game, -INFO_PANEL_OFFSET, false, false)
         }
     }
+}
+
+cm_draw_item_info_panel :: proc(
+    item: ^Item,
+    game: ^Game,
+    offset: Vec2,
+    hover_tint: bool,
+    price: bool,
+) -> bool {
+    position := item.position + offset
+    hovered := false
+    if hover_tint {
+        button_rect := Rectangle {
+            position,
+            {cast(f32)game.shop_panel_texture.width, cast(f32)game.shop_panel_texture.height},
+        }
+        hovered = rectangle_contains(&button_rect, game.input.mouse_world_positon)
+    }
+
+    tint := false
+    tint_color := Color {
+        a = 0,
+    }
+    if hovered {
+        tint = true
+        tint_color = Color {
+            r = 128,
+            a = 64,
+        }
+    }
+
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.shop_panel_texture,
+            texture_area = texture_full_area(&game.shop_panel_texture),
+            texture_center = position,
+            ignore_alpha = false,
+            tint = tint,
+            tint_color = tint_color,
+        },
+    )
+
+    render_commands_add(
+        &game.render_commands,
+        DrawTextureCommand {
+            texture = &game.item_ball_spiky_texture,
+            texture_area = texture_full_area(&game.item_ball_spiky_texture),
+            texture_center = position,
+            ignore_alpha = false,
+        },
+    )
+
+    return hovered
 }
 
 cm_draw_player_info :: proc(info: ^PlayerInfo, position: Vec2, turn_owner: bool, game: ^Game) {
