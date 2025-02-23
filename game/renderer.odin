@@ -113,6 +113,8 @@ DrawTextureScaleRotate :: struct {
     rotation:        f32,
     rotation_offset: Vec2,
     ignore_alpha:    bool,
+    tint:            bool,
+    tint_color:      Color,
 }
 
 RenderCommand :: union #no_nil {
@@ -237,6 +239,8 @@ render_commands_render :: proc(
                 c.rotation,
                 c.rotation_offset,
                 c.ignore_alpha,
+                c.tint,
+                c.tint_color,
             )
         }
     }
@@ -620,6 +624,8 @@ draw_texture_scale_rotate :: proc(
     rotation: f32 = 0,
     rotation_offset := Vec2{},
     ignore_alpha := true,
+    tint := false,
+    tint_color := WHITE,
 ) {
     inv_scale := 1 / scale
     cos, sin := linalg.cos(rotation), linalg.sin(rotation)
@@ -668,30 +674,62 @@ draw_texture_scale_rotate :: proc(
         dc_perp := perp(c - d)
         ca_perp := perp(a - c)
 
-        for y in 0 ..< height {
-            for x in 0 ..< width {
-                p := vec2_cast_f32(intersection.min + {x, y})
+        if tint {
+            tint_color := tint_color
+            for y in 0 ..< height {
+                for x in 0 ..< width {
+                    p := vec2_cast_f32(intersection.min + {x, y})
 
-                ap := p - a
-                bp := p - b
-                dp := p - d
-                cp := p - c
+                    ap := p - a
+                    bp := p - b
+                    dp := p - d
+                    cp := p - c
 
-                if 0 < linalg.dot(ab_perp, ap) &&
-                   0 < linalg.dot(bd_perp, bp) &&
-                   0 < linalg.dot(dc_perp, dp) &&
-                   0 < linalg.dot(ca_perp, cp) {
-                    u := cast(u32)(linalg.dot(ap, x_axis) * inv_scale)
-                    v := cast(u32)(linalg.dot(ap, y_axis) * inv_scale)
-                    u = clamp(u, 0, texture_area.size.x - 1)
-                    v = clamp(v, 0, texture_area.size.y - 1)
+                    if 0 < linalg.dot(ab_perp, ap) &&
+                       0 < linalg.dot(bd_perp, bp) &&
+                       0 < linalg.dot(dc_perp, dp) &&
+                       0 < linalg.dot(ca_perp, cp) {
+                        u := cast(u32)(linalg.dot(ap, x_axis) * inv_scale)
+                        v := cast(u32)(linalg.dot(ap, y_axis) * inv_scale)
+                        u = clamp(u, 0, texture_area.size.x - 1)
+                        v = clamp(v, 0, texture_area.size.y - 1)
 
-                    color := texture_colors[texture_data_start + u + v * cast(u32)texture.width]
-                    surface_color := &surface_colors[surface_data_start:][x]
-                    surface_color^ = color_blend(surface_color, &color)
+                        color :=
+                            texture_colors[texture_data_start + u + v * cast(u32)texture.width]
+                        color = color_blend(&color, &tint_color)
+                        surface_color := &surface_colors[surface_data_start:][x]
+                        surface_color^ = color_blend(surface_color, &color)
+                    }
                 }
+                surface_data_start += cast(u32)surface.width
             }
-            surface_data_start += cast(u32)surface.width
+        } else {
+            for y in 0 ..< height {
+                for x in 0 ..< width {
+                    p := vec2_cast_f32(intersection.min + {x, y})
+
+                    ap := p - a
+                    bp := p - b
+                    dp := p - d
+                    cp := p - c
+
+                    if 0 < linalg.dot(ab_perp, ap) &&
+                       0 < linalg.dot(bd_perp, bp) &&
+                       0 < linalg.dot(dc_perp, dp) &&
+                       0 < linalg.dot(ca_perp, cp) {
+                        u := cast(u32)(linalg.dot(ap, x_axis) * inv_scale)
+                        v := cast(u32)(linalg.dot(ap, y_axis) * inv_scale)
+                        u = clamp(u, 0, texture_area.size.x - 1)
+                        v = clamp(v, 0, texture_area.size.y - 1)
+
+                        color :=
+                            texture_colors[texture_data_start + u + v * cast(u32)texture.width]
+                        surface_color := &surface_colors[surface_data_start:][x]
+                        surface_color^ = color_blend(surface_color, &color)
+                    }
+                }
+                surface_data_start += cast(u32)surface.width
+            }
         }
     } else if texture.channels == 1 {
         texture_colors := texture.data

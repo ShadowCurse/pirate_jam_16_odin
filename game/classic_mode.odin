@@ -44,6 +44,7 @@ PlayerInfo :: struct {
 }
 
 cm_player_info_add_item :: proc(player_info: ^PlayerInfo, tag: ItemTag) -> bool {
+    log_info("Adding %v, to the player inventory", tag)
     for &item in player_info.items {
         if item.tag == .Invalid {
             item.tag = tag
@@ -61,10 +62,33 @@ OPPONENT_ITEMS_BACKGROUND :: Vec2{0, -320}
 ItemTag :: enum {
     Invalid,
     BallSpiky,
+    BallHealthy,
+    BallArmored,
+    BallLight,
+    BallHeavy,
+    BallAntisocial,
+    BallGravity,
+    BallRunner,
+    BallRingOfLight,
+    CueScope,
+    CueSilencer,
+    CueRocketBooster,
+    CueKar98K,
+    CueCross,
 }
 Item :: struct {
     tag:      ItemTag,
     position: Vec2,
+}
+
+item_is_ball_upgrade :: proc(item: ^Item) -> bool {
+    if .Invalid < item.tag && item.tag < .CueScope do return true
+    return false
+}
+
+item_is_cue_upgrade :: proc(item: ^Item) -> bool {
+    if .BallRingOfLight < item.tag && item.tag < .CueKar98K do return true
+    return false
 }
 
 CUE_TARGET_OFFSET :: 50
@@ -333,9 +357,8 @@ cm_in_game_shop :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
 }
 
 cm_shop_reroll :: proc(mode: ^ClassicMode) {
-    for &si in mode.shop_items {
-        si.tag = .BallSpiky
-    }
+    mode.shop_items[0].tag = .BallSpiky
+    mode.shop_items[1].tag = .CueScope
 }
 
 cm_draw_table :: proc(game: ^Game) {
@@ -378,6 +401,17 @@ cm_draw_balls :: proc(mode: ^ClassicMode, game: ^Game) {
                 a = 128,
             }
         }
+
+        if mode.player.selected_item != ITEM_NOT_SELECTED {
+            item := &mode.player.items[mode.player.selected_item]
+            if item_is_ball_upgrade(item) {
+                tint_color = Color {
+                    g = 128,
+                    a = 128,
+                }
+            }
+        }
+
         render_commands_add(
             &game.render_commands,
             DrawTextureCommand {
@@ -540,7 +574,32 @@ cm_draw_cues :: proc(mode: ^ClassicMode, game: ^Game) {
     )
 
     for &cue in mode.player.cues {
-        cm_cue_draw(&cue, game)
+        tint := false
+        tint_color := WHITE
+        if mode.player.selected_item != ITEM_NOT_SELECTED {
+            item := &mode.player.items[mode.player.selected_item]
+            if item_is_cue_upgrade(item) {
+                tint = true
+                tint_color = Color {
+                    g = 128,
+                    a = 128,
+                }
+            }
+        }
+
+        render_commands_add(
+            &game.render_commands,
+            DrawTextureScaleRotate {
+                texture = &game.cue_default_texture,
+                texture_area = texture_full_area(&game.cue_default_texture),
+                texture_center = cue.position,
+                scale = 1,
+                rotation = cue.rotation,
+                ignore_alpha = false,
+                tint = tint,
+                tint_color = tint_color,
+            },
+        )
     }
 
     render_commands_add(
@@ -554,7 +613,32 @@ cm_draw_cues :: proc(mode: ^ClassicMode, game: ^Game) {
     )
 
     for &cue in mode.opponent.cues {
-        cm_cue_draw(&cue, game)
+        tint := false
+        tint_color := WHITE
+        if mode.opponent.selected_item != ITEM_NOT_SELECTED {
+            item := &mode.opponent.items[mode.opponent.selected_item]
+            if item_is_cue_upgrade(item) {
+                tint = true
+                tint_color = Color {
+                    g = 128,
+                    a = 128,
+                }
+            }
+        }
+
+        render_commands_add(
+            &game.render_commands,
+            DrawTextureScaleRotate {
+                texture = &game.cue_default_texture,
+                texture_area = texture_full_area(&game.cue_default_texture),
+                texture_center = cue.position,
+                scale = 1,
+                rotation = cue.rotation,
+                ignore_alpha = false,
+                tint = tint,
+                tint_color = tint_color,
+            },
+        )
     }
 }
 
