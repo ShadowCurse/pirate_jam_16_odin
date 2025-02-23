@@ -40,7 +40,7 @@ assert :: proc(condition: bool, format: string, args: ..any, loc := #caller_loca
             log(.Fatal, format, ..args, location = location)
             runtime.trap()
         }
-        internal(loc, format, args)
+        internal(loc, format, ..args)
     }
 }
 
