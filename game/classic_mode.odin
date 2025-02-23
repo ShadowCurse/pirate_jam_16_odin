@@ -16,7 +16,7 @@ ClassicMode :: struct {
     cue_adjust_position:       Vec2,
     cue_adjust_mouse_position: Vec2,
     cue_hit_animation:         SmoothStepAnimation,
-    item_use_dshed_line:       UiDashedLine,
+    item_use_dashed_line:      UiDashedLine,
 }
 
 TurnOwner :: enum {
@@ -33,6 +33,7 @@ TurnState :: enum {
 }
 
 PLAYER_BALL_COUNT :: 15
+ITEM_NOT_SELECTED :: 254
 PlayerInfo :: struct {
     hp:            i32,
     souls:         i32,
@@ -233,6 +234,7 @@ cm_in_game :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
     switch mode.turn_state {
     case .NotTaken:
         cm_select_ball(mode, game)
+        cm_use_item(mode, game, dt)
         if mode.selected_ball != BALL_NOT_SELECTED do mode.turn_state = .Aim
     case .Aim:
         cm_cue_aim(
@@ -295,6 +297,7 @@ cm_in_game :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
     cm_draw_cue_info(mode, game)
     // cm_draw_borders(mode, game)
     cm_draw_items(mode, game)
+    cm_draw_item_use_line(mode, game, dt)
     cm_draw_player_infos(mode, game)
 
     shop := ui_draw_button(game, {320, 320}, "Show")
@@ -675,6 +678,56 @@ cm_draw_items :: proc(mode: ^ClassicMode, game: ^Game) {
         if cm_item_hovered(item.position, game.input.mouse_world_positon) {
             cm_draw_item_info_panel(&item, game, -INFO_PANEL_OFFSET, false, false)
         }
+    }
+}
+
+cm_use_item :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
+    if mode.player.selected_item == ITEM_NOT_SELECTED {
+        for &item, i in mode.player.items {
+            if item.tag == .Invalid do continue
+            if cm_item_hovered(item.position, game.input.mouse_world_positon) &&
+               game.input.lmb == .Pressed {
+                mode.player.selected_item = cast(u8)i
+                log_info("Player selected: %d item", i)
+            }
+        }
+    } else {
+        if game.input.lmb == .Pressed {
+            mode.player.selected_item = ITEM_NOT_SELECTED
+        }
+    }
+
+    if mode.opponent.selected_item == ITEM_NOT_SELECTED {
+        for &item, i in mode.opponent.items {
+            if item.tag == .Invalid do continue
+            if cm_item_hovered(item.position, game.input.mouse_world_positon) &&
+               game.input.lmb == .Pressed {
+                mode.opponent.selected_item = cast(u8)i
+                log_info("Opponent selected: %d item", i)
+            }
+        }
+    } else {
+        if game.input.lmb == .Pressed {
+            mode.opponent.selected_item = ITEM_NOT_SELECTED
+        }
+    }
+}
+
+cm_draw_item_use_line :: proc(mode: ^ClassicMode, game: ^Game, dt: f32) {
+    {
+        if mode.player.selected_item == ITEM_NOT_SELECTED do return
+        item := &mode.player.items[mode.player.selected_item]
+        mode.item_use_dashed_line.start = item.position
+        mode.item_use_dashed_line.end = game.input.mouse_world_positon
+        ui_draw_dashed_line(&mode.item_use_dashed_line, game, dt)
+    }
+
+    {
+        if mode.opponent.selected_item == ITEM_NOT_SELECTED do return
+        item := &mode.opponent.items[mode.opponent.selected_item]
+        mode.item_use_dashed_line.start = item.position
+        mode.item_use_dashed_line.end = game.input.mouse_world_positon
+        ui_draw_dashed_line(&mode.item_use_dashed_line, game, dt)
     }
 }
 
